@@ -31,7 +31,7 @@ Let's look into an example frontend project `foo` hash plan and understand the f
 /bar - backend project
 /build - CI/CD tools and build definitions
 /resources - some resources shared across both projects
-Jenkinsfile - root Jenkins definition
+/Jenkinsfile - root Jenkins definition
 ```
 
 With the assumption that foo's `.monohash` file resides within the `/build/foo/.monohash` path, the hash plan could look something like this:
@@ -53,6 +53,14 @@ With the assumption that foo's `.monohash` file resides within the `/build/foo/.
 
 !yarn-error.log
 ```
+
+In plain English, thih hash plan instructs MonoHash to perform the following:
+1) Position yourself into the `/foo` frontend project, and consider this as the anchor for all future directives
+2) Include all the files inside the `/resources` folder, and also use the `Jenkinsfile` in the root of the repository
+3) Now also include all the files in the actual `/foo` directory ...
+4) With the exception of the blacklisted entries such as `node_modules/` or `docs/` directories
+
+Now, to elaborate on the hash plan:
 
 There are three control characters in .monohash hash plan:  
 `@` - defines the relative paths for all the following instructions  
@@ -109,9 +117,8 @@ libraryDependencies += "com.oradian.infra" % "monohash" % "0.5.0"
 
 ### Command-line usage:
 
-The MonoHash library can be used as a library, or ran on the command line.  
-Running it on the command line allows for configuring hashing algorithms, concurrency and log levels:  
-
+If you don't care about programmatic (library) access, you can simply [download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.5.0/monohash-0.5.0.jar) and use it on the command line.
+Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:
 
 ```
 Usage: java -jar monohash.jar [hash plan file] [export file (optional)]
