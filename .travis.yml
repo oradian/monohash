@@ -1,0 +1,20 @@
+language: scala
+
+scala:
+  - "2.12.8"
+
+jdk:
+  - oraclejdk9
+  - oraclejdk8
+  - oraclejdk11
+
+sudo: false
+
+notifications:
+  email:
+    recipients:
+      - marko.elezovic@oradian.com
+
+script:
+  # Try to build documentation, package sources and run tests
+  - sbt ++$TRAVIS_SCALA_VERSION publishLocal test

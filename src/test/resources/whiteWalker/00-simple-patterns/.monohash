@@ -1,0 +1,7 @@
+@harness/
+
+# only process one directory
+2/
+
+# skip one file
+!2/e

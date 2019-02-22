@@ -1,0 +1,8 @@
+@harness/
+
+# include everything in basePath
+./
+
+# exclude using * wildcards
+!*b
+!2*

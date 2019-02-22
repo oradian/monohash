@@ -1,0 +1,5 @@
+@harness/
+
+# directory slashes are optional, but lack of a slash will trigger a warning in logs
+whitelist-with-slash/
+whitelist-without-slash
