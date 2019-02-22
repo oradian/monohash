@@ -1,11 +1,11 @@
 package com.oradian.infra.monohash
 
 import java.io.File
+import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.util.AbstractMap.SimpleEntry
 import java.util.Locale
 
-import javax.xml.bind.DatatypeConverter.parseHexBinary
 import org.specs2.matcher.MatchResult
 
 import scala.collection.JavaConverters._
@@ -56,7 +56,7 @@ class HashResultsSpec extends MutableSpecification {
 
   private[this] def toHR(files: (String, Char)*): HashResults = {
     val results = files map { case (path, body) =>
-      path -> Array.fill(LengthInBytes) { parseHexBinary(body.toString * 2).head }
+      path -> Array.fill(LengthInBytes) { Hex.fromHex((body.toString * 2).getBytes(UTF_8), 2).head }
     }
     new HashResults(logger, Algorithm, (results map { case (k, v) =>
       new SimpleEntry[String, Array[Byte]](k, v): java.util.Map.Entry[String, Array[Byte]]
