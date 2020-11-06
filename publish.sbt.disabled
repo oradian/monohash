@@ -1,9 +1,7 @@
 import xerial.sbt.Sonatype._
 
 sonatypeProjectHosting := Some(GitHubHosting("oradian", "monohash", "marko.elezovic@oradian.com"))
-developers := List(
-  Developer(id="melezov", name="Marko Elezovic", email="marko.elezovic@oradian.com", url=url("https://github.com/melezov"))
-)
+developers := Developer(id = "melezov", name = "Marko Elezovic", email = "marko.elezovic@oradian.com", url = url("https://github.com/melezov")) :: Nil
 
 licenses += (("MIT", url("https://opensource.org/licenses/MIT")))
 startYear := Some(2019)
