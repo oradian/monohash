@@ -6,30 +6,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 public class HashWorker {
     private final Logger logger;
-    final MessageDigest worker;
+    private final MessageDigest digest;
     private final ByteBuffer buffer;
 
-    public final String algorithm;
     public final int lengthInBytes;
 
-    public HashWorker(final Logger logger, final String algorithm) {
+    public HashWorker(final Logger logger, final MessageDigest digest) {
         this.logger = logger;
-        try {
-            worker = MessageDigest.getInstance(algorithm);
-        } catch (final NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+        this.digest = digest;
         buffer = ByteBuffer.allocateDirect(64 * 1024);
-
-        this.algorithm = algorithm;
-        lengthInBytes = worker.getDigestLength();
+        lengthInBytes = digest.getDigestLength();
     }
 
-    /** Not thread safe, reuses buffer and worker */
+    /** Not thread safe, reuses buffer and digest */
     public byte[] hashFile(final File file) throws IOException {
         final long startAt = System.nanoTime();
         if (logger.isTraceEnabled()) {
@@ -37,7 +29,7 @@ public class HashWorker {
         }
         try (final FileInputStream fis = new FileInputStream(file)) {
             final FileChannel fc = fis.getChannel();
-            worker.reset();
+            digest.reset();
             while (true) {
                 buffer.clear();
                 final int read = fc.read(buffer);
@@ -45,9 +37,9 @@ public class HashWorker {
                     break;
                 }
                 buffer.flip();
-                worker.update(buffer);
+                digest.update(buffer);
             }
-            final byte[] result = worker.digest();
+            final byte[] result = digest.digest();
             if (logger.isTraceEnabled()) {
                 logger.trace(String.format(
                         "Hashed file '%s': %s (in %1.3f ms)",

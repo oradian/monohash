@@ -2,6 +2,7 @@ package com.oradian.infra.monohash;
 
 import java.io.*;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static com.oradian.infra.monohash.Logger.NL;
@@ -9,14 +10,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
     private final Logger logger;
-    private final String algorithm;
+    private final MessageDigest digest;
     private final int lengthInHex;
     private final byte[][] lines;
 
-    public HashResults(final Logger logger, final String algorithm, final Collection<Map.Entry<String, byte[]>> files) {
+    public HashResults(final Logger logger, final String algorithm, final Collection<Map.Entry<String, byte[]>> files) throws NoSuchAlgorithmException {
         this.logger = logger;
-        this.algorithm = algorithm;
-        this.lengthInHex = new HashWorker(logger, algorithm).lengthInBytes << 1;
+        this.digest = MessageDigest.getInstance(algorithm);
+        this.lengthInHex = digest.getDigestLength() << 1;
 
         lines = new byte[files.size()][];
 
@@ -36,13 +37,13 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
      * Parses the hashes and relative paths from a file to instantiate a HashResult,
      * used for comparing a previous project HashResult to the current status
      */
-    public HashResults(final Logger logger, final String algorithm, final File inFile) throws IOException {
+    public HashResults(final Logger logger, final String algorithm, final File inFile) throws NoSuchAlgorithmException, IOException {
         this.logger = logger;
-        this.algorithm = algorithm;
-        this.lengthInHex = new HashWorker(logger, algorithm).lengthInBytes << 1;
+        this.digest = MessageDigest.getInstance(algorithm);
+        this.lengthInHex = digest.getDigestLength() << 1;
 
         try (final BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(inFile), UTF_8))) {
-            final ArrayList<byte[]> lines = new ArrayList<>();
+            final ArrayList<byte[]> result = new ArrayList<>();
             while (true) {
                 final String line = br.readLine();
                 if (line == null) break;
@@ -57,18 +58,18 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
                 if (!line.matches("[0-9A-Fa-f]{" + lengthInHex + "}.*")) {
                     throw new IOException("Expected hash of " + lengthInHex + " hexadecimal characters at the beginning of line, but got: '" + line + "'");
                 }
-                lines.add(line.concat("\n").getBytes(UTF_8)); // hardcoded to unix newline for cross-platform compatibility
+                result.add(line.concat("\n").getBytes(UTF_8)); // hardcoded to unix newline for cross-platform compatibility
             }
-            this.lines = lines.toArray(new byte[0][]);
+            this.lines = result.toArray(new byte[0][]);
         }
     }
 
     public byte[] totalHash() {
-        final MessageDigest md = new HashWorker(logger, algorithm).worker;
+        digest.reset();
         for (final byte[] line : lines) {
-            md.update(line);
+            digest.update(line);
         }
-        return md.digest();
+        return digest.digest();
     }
 
     /**
@@ -95,6 +96,9 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
 
             @Override
             public Map.Entry<String, byte[]> next() {
+                if (current >= lines.length) {
+                    throw new NoSuchElementException("Seeking past last entry");
+                }
                 final byte[] line = lines[current++];
                 final String path = new String(line, lengthInHex + 1, line.length - lengthInHex - 2, UTF_8);
                 final byte[] hash = Hex.fromHex(line, lengthInHex);

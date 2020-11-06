@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static com.oradian.infra.monohash.Logger.NL;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class HashPlan {
     public final File plan;
@@ -125,6 +125,8 @@ public class HashPlan {
                     if (logger.isWarnEnabled()) {
                         logger.warn("Relative path '.' is a directory - please append a trailing / to this whitelist entry");
                     }
+                    dotPatch.add(basePath);
+                    break; // falling through here freaks out linters
                 case "./":
                     dotPatch.add(basePath);
                     break;

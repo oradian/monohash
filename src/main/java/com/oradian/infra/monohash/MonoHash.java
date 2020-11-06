@@ -12,7 +12,7 @@ public class MonoHash {
         try {
             final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(System.err, logLevel));
             final byte[] totalHash = new MonoHash(parser.logger)
-                    .run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency)
+                    .run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
                     .totalHash();
             System.out.println(Hex.toHex(totalHash));
             System.exit(0);
@@ -31,7 +31,7 @@ public class MonoHash {
         this.logger = logger;
     }
 
-    public HashResults run(final File hashPlan, final File export, final String algorithm, final int concurrency) throws IOException {
+    public HashResults run(final File hashPlan, final File export, final String algorithm, final int concurrency, final Verification verification) throws Exception {
         final File planFile = hashPlan.getCanonicalFile();
         if (!planFile.isFile()) {
             throw new IOException("[hash plan file] must point to an existing file, got: " + hashPlan);

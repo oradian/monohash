@@ -1,7 +1,7 @@
 package com.oradian.infra.monohash
 
 import java.io.File
-import java.util.Arrays
+import java.util.{Arrays => JArrays}
 
 class HashPlanSpec extends MutableSpecification {
   private[this] val logger = new LoggingLogger
@@ -34,9 +34,9 @@ class HashPlanSpec extends MutableSpecification {
   }
 
   "Whitelisting support" >> {
-    test("whitelist/00-default").whitelist ==== Arrays.asList(resources + "whitelist/00-default/")
-    test("whitelist/01-dot").whitelist ==== Arrays.asList(resources + "whitelist/01-dot/")
-    test("whitelist/02-non-existent").whitelist ==== Arrays.asList(resources + "whitelist/02-non-existent/no-show/")
-    test("whitelist/03-escapes").whitelist ==== Arrays.asList(resources + "whitelist/03-escapes/!important!.txt", resources + "whitelist/03-escapes/@sbt.boot.properties", resources + "whitelist/03-escapes/#1.log")
+    test("whitelist/00-default").whitelist ==== JArrays.asList(resources + "whitelist/00-default/")
+    test("whitelist/01-dot").whitelist ==== JArrays.asList(resources + "whitelist/01-dot/")
+    test("whitelist/02-non-existent").whitelist ==== JArrays.asList(resources + "whitelist/02-non-existent/no-show/")
+    test("whitelist/03-escapes").whitelist ==== JArrays.asList(resources + "whitelist/03-escapes/!important!.txt", resources + "whitelist/03-escapes/@sbt.boot.properties", resources + "whitelist/03-escapes/#1.log")
   }
 }

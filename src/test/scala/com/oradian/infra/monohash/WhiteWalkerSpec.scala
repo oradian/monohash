@@ -1,10 +1,11 @@
 package com.oradian.infra.monohash
 
 import java.io.File
+import java.security.MessageDigest
 
 import org.specs2.matcher.MatchResult
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class WhiteWalkerSpec extends MutableSpecification {
   private[this] val logger = new LoggingLogger
@@ -16,7 +17,7 @@ class WhiteWalkerSpec extends MutableSpecification {
     val actualHashResults = WhiteWalker.apply(logger, Algorithm, hashPlan, 1).asScala.toSeq.map(kv => (kv.getKey, kv.getValue.toSeq))
 
     val expectedHashResults = expectedFiles.toSeq map { file =>
-      val nameHash = new HashWorker(logger, Algorithm).worker
+      val nameHash = MessageDigest.getInstance(Algorithm)
         .digest(file.replaceFirst(".*/", "").getBytes("UTF-8"))
       (file, nameHash.toSeq)
     }

@@ -3,19 +3,19 @@ package com.oradian.infra.monohash
 import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.util.AbstractMap.SimpleEntry
 import java.util.Locale
 
 import org.specs2.matcher.MatchResult
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class HashResultsSpec extends MutableSpecification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
-
   private[this] val Algorithm = "SHA-1"
-  private[this] val LengthInBytes = new HashWorker(logger, Algorithm).lengthInBytes
+  private[this] val LengthInBytes = MessageDigest.getInstance("SHA-1").getDigestLength
 
   private[this] def genRandomHashResults(): HashResults = new HashResults(
     logger,
@@ -45,7 +45,8 @@ class HashResultsSpec extends MutableSpecification {
     }
 
     val bytes = Files.readAllBytes(roundtripFile.toPath)
-    new HashWorker(logger, Algorithm).worker.digest(bytes) ==== hashResults.totalHash()
+    val digest = MessageDigest.getInstance(Algorithm)
+    digest.digest(bytes) ==== hashResults.totalHash()
 
     roundtripFile.delete()
     res

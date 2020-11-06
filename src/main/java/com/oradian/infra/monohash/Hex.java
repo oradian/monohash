@@ -2,6 +2,8 @@ package com.oradian.infra.monohash;
 
 // It's mind-boggling that there is no decent hex utility in the JRE
 class Hex {
+    private Hex() {}
+
     private static final char[] TO_LC_HEX = "0123456789abcdef".toCharArray();
     static String toHex(final byte[] binary) {
         final char[] hex = new char[binary.length << 1];
@@ -28,8 +30,8 @@ class Hex {
         final byte[] binary = new byte[length >> 1];
         int readIndex = 0;
         for (int i = 0; i < binary.length; i++) {
-            binary[i] = (byte) ((FROM_HEX[(int) hex[readIndex++]] << 4) +
-                                (FROM_HEX[(int) hex[readIndex++]]));
+            binary[i] = (byte) ((FROM_HEX[hex[readIndex++]] << 4) +
+                                (FROM_HEX[hex[readIndex++]]));
         }
         return binary;
     }

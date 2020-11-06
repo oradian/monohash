@@ -2,6 +2,8 @@ package com.oradian.infra.monohash;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -20,7 +22,7 @@ class WhiteWalker {
     private final Queue<File> workQueue;
 
     private final Semaphore workersFinished;
-    private final AtomicReference<IOException> workerError;
+    private final AtomicReference<Exception> workerError;
 
     private final long startAt;
     private final ConcurrentMap<String, byte[]> pathHashes;
@@ -35,7 +37,7 @@ class WhiteWalker {
             final HashPlan hashPlan,
             final Queue<File> workQueue,
             final Semaphore workersFinished,
-            final AtomicReference<IOException> workerError) {
+            final AtomicReference<Exception> workerError) {
         this.logger = logger;
         this.algorithm = algorithm;
         this.hashPlan = hashPlan;
@@ -62,11 +64,12 @@ class WhiteWalker {
 
     private static final byte[] EMPTY = new byte[0];
 
-    private void processWorkInQueue(final Logger logger, final String workerId) throws IOException {
+    private void processWorkInQueue(final Logger logger, final String workerId) throws NoSuchAlgorithmException, IOException {
         if (logger.isTraceEnabled()) {
             logger.trace("Started worker " + workerId + " ...");
         }
-        final HashWorker hasher = new HashWorker(logger, algorithm);
+        final MessageDigest digest = MessageDigest.getInstance(algorithm);
+        final HashWorker hasher = new HashWorker(logger, digest);
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
@@ -199,7 +202,7 @@ class WhiteWalker {
         return path.substring(basePath.length());
     }
 
-    public static HashResults apply(final Logger logger, final String algorithm, final HashPlan hashPlan, final int concurrency) throws IOException {
+    public static HashResults apply(final Logger logger, final String algorithm, final HashPlan hashPlan, final int concurrency) throws Exception {
         final Queue<File> workQueue = new ArrayDeque<>();
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
@@ -212,7 +215,7 @@ class WhiteWalker {
         final Thread[] workers = new Thread[concurrency];
 
         final Semaphore workersFinished = new Semaphore(1 - concurrency);
-        final AtomicReference<IOException> workerError = new AtomicReference<>();
+        final AtomicReference<Exception> workerError = new AtomicReference<>();
         final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError);
 
         for (int i = 0; i < workers.length; i++) {
@@ -220,8 +223,8 @@ class WhiteWalker {
             workers[i] = new Thread(() -> {
                 try {
                     ww.processWorkInQueue(logger, workerId);
-                } catch (final IOException e) {
-                    workerError.set(e);
+                } catch (final Exception t) {
+                    workerError.set(t);
                     if (logger.isErrorEnabled()) {
                         logger.error(workerId + " experienced an exception, shutting down other workers ...");
                     }
