@@ -4,17 +4,19 @@ version := "0.6.0-SNAPSHOT"
 
 libraryDependencies ++= Seq(
   "org.specs2"  %% "specs2-core" % "4.10.5" % Test,
-  "com.lihaoyi" %% "sourcecode"  % "0.2.1" % Test,
 )
 
 crossPaths := false
 autoScalaLibrary := false
 
-javacOptions := (Seq(
-  "-deprecation",
+javacOptions in doc := Seq(
   "-encoding", "UTF-8",
-  "-parameters",
   "-source", "8",
+)
+
+javacOptions := (javacOptions in doc).value ++ (Seq(
+  "-deprecation",
+  "-parameters",
   "-target", "8",
   "-Xlint",
 ) ++ sys.env.get("JAVA8_HOME").map { jdk8 =>
@@ -32,6 +34,6 @@ scalacOptions := Seq(
   "-Yrangepos",
 )
 
-fork in run := true
+fork in Test := true
 
 Global / onChangedBuildSource := ReloadOnSourceChanges

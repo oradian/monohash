@@ -1,11 +1,17 @@
 language: scala
 
 scala:
-  - "2.12.8"
+  - "2.13.3"
 
 jdk:
-  - oraclejdk8
-  - oraclejdk9
+  - openjdk15
+  - openjdk14
+  - openjdk13
+  - openjdk12
+  - openjdk11
+  - openjdk10
+  - openjdk9
+  - openjdk8
 
 sudo: false
 
@@ -16,4 +22,4 @@ notifications:
 
 script:
   # Try to build documentation, package sources and run tests
-  - sbt ++$TRAVIS_SCALA_VERSION publishLocal test
+  - sbt ++$TRAVIS_SCALA_VERSION publishLocal jacoco

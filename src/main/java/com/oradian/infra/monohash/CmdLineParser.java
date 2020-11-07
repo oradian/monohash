@@ -1,6 +1,7 @@
 package com.oradian.infra.monohash;
 
 import com.oradian.infra.monohash.Logger.Level;
+import com.oradian.infra.monohash.MonoHash.ExitException;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -23,7 +24,7 @@ class CmdLineParser {
         LOG_LEVEL   ("-l", "log level",    "info", () -> ", allowed values: " + printSupportedLogLevels()),
         ALGORITHM   ("-a", "algorithm",    "SHA-1", () -> ", some allowed values: " + printSupportedAlgorithms(true)),
         CONCURRENCY ("-c", "concurrency",  String.valueOf(getCurrentDefaultConcurrency()), () -> " - taken from number of CPUs, unless specified here"),
-        VERIFICATION("-v", "verification", "warn", () -> ", allowed values: " + printSupportedVerifications()),
+        VERIFICATION("-v", "verification", "off", () -> ", allowed values: " + printSupportedVerifications()),
         ;
 
         final String flag;
@@ -40,13 +41,6 @@ class CmdLineParser {
 
         @Override public String toString() {
             return "  " + flag + " <" + name + "> (default: " + defaultValue + description.get() + ")";
-        }
-    }
-
-    @SuppressWarnings("serial")
-    static class ExitException extends Exception {
-        ExitException(final String help) {
-            super(help);
         }
     }
 
@@ -68,7 +62,7 @@ class CmdLineParser {
             pw.println();
         }
 
-        return new ExitException(sw.toString());
+        return new ExitException(sw.toString(), 1);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -140,7 +134,7 @@ class CmdLineParser {
         try {
             return Level.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown log level: '" + value + "', allowed log levels are " + printSupportedLogLevels());
+            throw buildExitWithHelp("Unknown log level: '" + value + "', supported log levels are: " + printSupportedLogLevels());
         }
     }
 
@@ -254,7 +248,7 @@ class CmdLineParser {
         try {
             return Verification.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown verification: '" + value + "', allowed verifications are " + printSupportedLogLevels());
+            throw buildExitWithHelp("Unknown verification: '" + value + "', supported verifications are: " + printSupportedVerifications());
         }
     }
 
@@ -310,6 +304,9 @@ class CmdLineParser {
         hashPlanFile = new File(planPath);
         if (remainingArgs.isEmpty()) {
             exportFile = null;
+            if (verification == Verification.REQUIRE) {
+                throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided");
+            }
         } else {
             final String exportPath = remainingArgs.remove(0);
             if (exportPath.isEmpty()) {

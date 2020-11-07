@@ -42,6 +42,10 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
         this.digest = MessageDigest.getInstance(algorithm);
         this.lengthInHex = digest.getDigestLength() << 1;
 
+        if (logger.isTraceEnabled()) {
+            logger.trace("Parsing [export file]: " + inFile + " ...");
+        }
+        final long startAt = System.nanoTime();
         try (final BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(inFile), UTF_8))) {
             final ArrayList<byte[]> result = new ArrayList<>();
             while (true) {
@@ -53,7 +57,7 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
                     throw new IOException("Could not split hash from path in line: " + line);
                 }
                 if (breakLine != lengthInHex) {
-                    throw new IOException("Expected hash length " + lengthInHex + ", but found a hash with " + breakLine + " characters instead: '" + line + "'");
+                    throw new IOException("Expected hash length of " + lengthInHex + ", but found a hash with " + breakLine + " characters instead: '" + line + "'");
                 }
                 if (!line.matches("[0-9A-Fa-f]{" + lengthInHex + "}.*")) {
                     throw new IOException("Expected hash of " + lengthInHex + " hexadecimal characters at the beginning of line, but got: '" + line + "'");
@@ -61,6 +65,10 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
                 result.add(line.concat("\n").getBytes(UTF_8)); // hardcoded to unix newline for cross-platform compatibility
             }
             this.lines = result.toArray(new byte[0][]);
+        }
+        if (logger.isDebugEnabled()) {
+            final long endAt = System.nanoTime();
+            logger.debug(String.format("Parsed [export file]: '%s' (in %1.3f ms)", inFile, (endAt - startAt) / 1e6));
         }
     }
 
@@ -120,13 +128,74 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
         return result;
     }
 
-    public static String diff(final HashResults src, final HashResults dst) {
-        final Map<String, byte[]> srcMap = src.toMap();
-        final Map<String, byte[]> dstMap = dst.toMap();
-
+    public static class Diff {
         final Map<String, List<Map.Entry<Integer, String[]>>> addedReverse = new LinkedHashMap<>(); // hash, (index1, (hash, path1Dst, path1Src?)), (index2, (hash, path2Dst, path2Src?)), ...
         final Map<String, byte[][]> changed = new LinkedHashMap<>();                                // path, hashDst, hashSrc
         final Map<String, String> deleted = new LinkedHashMap<>();                                  // pathDst, hash
+
+        public boolean isEmpty() {
+            return addedReverse.isEmpty() && changed.isEmpty() && deleted.isEmpty();
+        }
+
+        public List<String> toLines() {
+            final ArrayList<String> lines = new ArrayList<>();
+            final StringBuilder sbx = new StringBuilder();
+            if (!addedReverse.isEmpty()) {
+                lines.add("Added files:");
+                final SortedMap<Integer, String[]> sortedAddsAndRenames = new TreeMap<>(); // index, hash, pathDst, pathSrc?
+                for (final List<Map.Entry<Integer, String[]>> addedHashEntry : addedReverse.values()) {
+                    for (final Map.Entry<Integer, String[]> addedPathEntry : addedHashEntry) {
+                        sortedAddsAndRenames.put(addedPathEntry.getKey(), addedPathEntry.getValue());
+                    }
+                }
+                for (final String[] add : sortedAddsAndRenames.values()) {
+                    sbx.setLength(0);
+                    sbx.append("+ ").append(add[0]).append(": ").append(add[1]);
+                    if (add[2] != null) {
+                        sbx.append(" (renamed from: ").append(add[2]).append(")");
+                    }
+                    lines.add(sbx.toString());
+                }
+                lines.add("");
+            }
+            if (!changed.isEmpty()) {
+                lines.add("Changed files:");
+                for (final Map.Entry<String, byte[][]> change : changed.entrySet()) {
+                    sbx.setLength(0);
+                    sbx.append("! ").append(Hex.toHex(change.getValue()[0])).append(": ")
+                            .append(change.getKey())
+                            .append(" (was: ").append(Hex.toHex(change.getValue()[1])).append(")");
+                    lines.add(sbx.toString());
+                }
+                lines.add("");
+            }
+            if (!deleted.isEmpty()) {
+                lines.add("Deleted files:");
+                for (final Map.Entry<String, String> delete : deleted.entrySet()) {
+                    sbx.setLength(0);
+                    sbx.append("- ").append(delete.getValue()).append(": ").append(delete.getKey());
+                    lines.add(sbx.toString());
+                }
+                lines.add("");
+            }
+            return lines;
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            for (final String line : toLines()) {
+                sb.append(line).append(NL);
+            }
+            return sb.toString();
+        }
+    }
+
+    public static Diff diff(final HashResults src, final HashResults dst) {
+        final Map<String, byte[]> srcMap = src.toMap();
+        final Map<String, byte[]> dstMap = dst.toMap();
+
+        final Diff diff = new Diff();
 
         int index = 0;
         for (final Map.Entry<String, byte[]> dstEntry : dstMap.entrySet()) {
@@ -136,10 +205,10 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
             final byte[] srcValue = srcMap.remove(dstKey);
             if (srcValue == null) {
                 final String reverseKey = Hex.toHex(dstValue);
-                addedReverse.computeIfAbsent(reverseKey, unused -> new ArrayList<>())
+                diff.addedReverse.computeIfAbsent(reverseKey, unused -> new ArrayList<>())
                         .add(new AbstractMap.SimpleEntry<>(index, new String[]{reverseKey, dstKey, null})); // null is rename marker
             } else if (!Arrays.equals(dstValue, srcValue)) {
-                changed.put(dstKey, new byte[][]{dstValue, srcValue});
+                diff.changed.put(dstKey, new byte[][]{dstValue, srcValue});
             }
             index++;
         }
@@ -148,9 +217,9 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
             final String srcKey = srcEntry.getKey();
             final String srcValue = Hex.toHex(srcEntry.getValue());
 
-            final List<Map.Entry<Integer, String[]>> moved = addedReverse.get(srcValue);
+            final List<Map.Entry<Integer, String[]>> moved = diff.addedReverse.get(srcValue);
             if (moved == null) {
-                deleted.put(srcKey, srcValue);
+                diff.deleted.put(srcKey, srcValue);
             } else {
                 moved.stream()
                         .filter(entry -> entry.getValue()[2] == null)
@@ -159,40 +228,6 @@ public class HashResults extends AbstractCollection<Map.Entry<String, byte[]>> {
             }
         }
 
-        final StringBuilder sb = new StringBuilder();
-        if (!addedReverse.isEmpty()) {
-            sb.append("Added files:").append(NL);
-            final SortedMap<Integer, String[]> sortedAddsAndRenames = new TreeMap<>(); // index, hash, pathDst, pathSrc?
-            for (final List<Map.Entry<Integer, String[]>> addedHashEntry : addedReverse.values()) {
-                for (final Map.Entry<Integer, String[]> addedPathEntry : addedHashEntry) {
-                    sortedAddsAndRenames.put(addedPathEntry.getKey(), addedPathEntry.getValue());
-                }
-            }
-            for (final String[] add : sortedAddsAndRenames.values()) {
-                sb.append("+ ").append(add[0]).append(": ").append(add[1]);
-                if (add[2] != null) {
-                    sb.append(" (renamed from: ").append(add[2]).append(")");
-                }
-                sb.append(NL);
-            }
-            sb.append(NL);
-        }
-        if (!changed.isEmpty()) {
-            sb.append("Changed files:").append(NL);
-            for (final Map.Entry<String, byte[][]> change : changed.entrySet()) {
-                sb.append("! ").append(Hex.toHex(change.getValue()[0])).append(": ")
-                        .append(change.getKey())
-                        .append(" (was: ").append(Hex.toHex(change.getValue()[1])).append(")").append(NL);
-            }
-            sb.append(NL);
-        }
-        if (!deleted.isEmpty()) {
-            sb.append("Deleted files:").append(NL);
-            for (final Map.Entry<String, String> delete : deleted.entrySet()) {
-                sb.append("- ").append(delete.getValue()).append(": ").append(delete.getKey()).append(NL);
-            }
-            sb.append(NL);
-        }
-        return sb.toString();
+        return diff;
     }
 }

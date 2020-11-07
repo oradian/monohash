@@ -23,10 +23,10 @@ public class HashWorker {
 
     /** Not thread safe, reuses buffer and digest */
     public byte[] hashFile(final File file) throws IOException {
-        final long startAt = System.nanoTime();
         if (logger.isTraceEnabled()) {
             logger.trace("Starting hash of '" + file + "' ...");
         }
+        final long startAt = System.nanoTime();
         try (final FileInputStream fis = new FileInputStream(file)) {
             final FileChannel fc = fis.getChannel();
             digest.reset();
@@ -41,11 +41,8 @@ public class HashWorker {
             }
             final byte[] result = digest.digest();
             if (logger.isTraceEnabled()) {
-                logger.trace(String.format(
-                        "Hashed file '%s': %s (in %1.3f ms)",
-                        file,
-                        Hex.toHex(result),
-                        (System.nanoTime() - startAt) / 1000000.0));
+                final long endAt = System.nanoTime();
+                logger.trace(String.format("Hashed file '%s': %s (in %1.3f ms)", file, Hex.toHex(result), (endAt - startAt) / 1e6));
             }
             return result;
         }

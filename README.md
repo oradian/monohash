@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=master)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+[![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=oradian/monohash&amp;utm_campaign=Badge_Grade)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring projects which are impervious to these particular changes.

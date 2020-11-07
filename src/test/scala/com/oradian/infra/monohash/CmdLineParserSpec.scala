@@ -3,12 +3,12 @@ package com.oradian.infra.monohash
 import java.io.File
 import java.util.UUID
 
-import com.oradian.infra.monohash.CmdLineParser.ExitException
+import com.oradian.infra.monohash.MonoHash.ExitException
 import com.oradian.infra.monohash.impl.PrintStreamLogger
 import org.specs2.execute.Result
 import org.specs2.matcher.MatchResult
 
-class CmdLineParserSpec extends MutableSpecification {
+class CmdLineParserSpec extends MutableSpec {
   private[this] def withParser(args: String*)(f: CmdLineParser => MatchResult[_]*): Result = {
     val parser = new CmdLineParser(
       args.toArray,
@@ -19,49 +19,50 @@ class CmdLineParserSpec extends MutableSpecification {
     }
   }
 
-  private[this] val fakePlan = UUID.randomUUID().toString
-
-  "empty arg handling" >> {
-    "no args" >> {
+  "Empty argument handling" >> {
+    "No args provided" >> {
       withParser()() must throwAn[ExitException]("You did not specify the \\[hash plan file\\]!")
     }
-    "hash plan file is empty" >> {
+    "Hash plan file is empty" >> {
       withParser("")() must throwAn[ExitException]("Provided \\[hash plan file\\] was an empty string!")
     }
-    "export file is empty" >> {
+    "Export file is empty" >> {
       withParser("x", "")() must throwAn[ExitException]("Provided \\[export file\\] was an empty string!")
     }
   }
 
-  "simple" >> {
-    withParser("plan")(
-      _.hashPlanFile ==== new File("plan"),
+  private[this] val fakePlan = UUID.randomUUID().toString
+  private[this] val fakeExport = UUID.randomUUID().toString
+
+  "Simple hash plan" >> {
+    withParser(fakePlan)(
+      _.hashPlanFile ==== new File(fakePlan),
       _.exportFile ==== null,
     )
 
-    withParser("plan", "export")(
-      _.hashPlanFile ==== new File("plan"),
-      _.exportFile ==== new File("export"),
+    withParser(fakePlan, fakeExport)(
+      _.hashPlanFile ==== new File(fakePlan),
+      _.exportFile ==== new File(fakeExport),
     )
   }
 
-  "defaults" >> {
+  "Default options" >> {
     withParser(fakePlan)(
       _.logLevel ==== Logger.Level.INFO,
       _.algorithm ==== "SHA-1",
       _.concurrency must be > 0,
-      _.verification ==== Verification.WARN,
+      _.verification ==== Verification.OFF,
       _.hashPlanFile ==== new File(fakePlan),
       _.exportFile ==== null,
     )
   }
 
-  "option parsing" >> {
-    "log level parsing" >> {
+  "Option parsing" >> {
+    "Log level parsing" >> {
       withParser("-l")() must throwAn[ExitException]("Missing value for log level, last argument was an alone '-l'")
       withParser("-l", "--")() must throwAn[ExitException]("Missing value for log level, next argument was the stop flag '--'")
-      withParser("-l", fakePlan)() must throwAn[ExitException](s"Unknown log level: '$fakePlan', allowed log levels are off, error, warn, info, debug, trace")
-      withParser("-l", "xxx", fakePlan)() must throwAn[ExitException]("Unknown log level: 'xxx', allowed log levels are off, error, warn, info, debug, trace")
+      withParser("-l", fakePlan)() must throwAn[ExitException](s"Unknown log level: '$fakePlan', supported log levels are: off, error, warn, info, debug, trace")
+      withParser("-l", "xxx", fakePlan)() must throwAn[ExitException]("Unknown log level: 'xxx', supported log levels are: off, error, warn, info, debug, trace")
       withParser("-l", "off", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
         _.exportFile ==== null,
@@ -76,7 +77,7 @@ class CmdLineParserSpec extends MutableSpecification {
       )
     }
 
-    "algorithm parsing" >> {
+    "Algorithm parsing" >> {
       withParser("-a")() must throwAn[ExitException]("Missing value for algorithm, last argument was an alone '-a'")
       withParser("-a", "--")() must throwAn[ExitException]("Missing value for algorithm, next argument was the stop flag '--'")
       withParser("-a", fakePlan)() must throwAn[ExitException](s"Algorithm '$fakePlan' is not supported. Supported algorithms:")
@@ -95,7 +96,7 @@ class CmdLineParserSpec extends MutableSpecification {
       )
     }
 
-    "concurrency parsing" >> {
+    "Concurrency parsing" >> {
       withParser("-c")() must throwAn[ExitException]("Missing value for concurrency, last argument was an alone '-c'")
       withParser("-c", "--")() must throwAn[ExitException]("Missing value for concurrency, next argument was the stop flag '--'")
       withParser("-c", fakePlan)() must throwAn[ExitException](s"Invalid concurrency setting: '$fakePlan', expecting a positive integer")
@@ -116,41 +117,46 @@ class CmdLineParserSpec extends MutableSpecification {
       )
     }
 
-    "verification parsing" >> {
+    "Verification parsing" >> {
       withParser("-v")() must throwAn[ExitException]("Missing value for verification, last argument was an alone '-v'")
       withParser("-v", "--")() must throwAn[ExitException]("Missing value for verification, next argument was the stop flag '--'")
-      withParser("-v", fakePlan)() must throwAn[ExitException](s"Unknown verification: '$fakePlan', allowed verifications are off, error, warn, info, debug, trace")
-      withParser("-vxxx", fakePlan)() must throwAn[ExitException]("Unknown verification: 'xxx', allowed verifications are off, error, warn, info, debug, trace")
-      withParser("-v", "off", fakePlan)(
-        _.verification ==== Verification.OFF,
+      withParser("-v", fakePlan)() must throwAn[ExitException](s"Unknown verification: '$fakePlan', supported verifications are: off, warn, require")
+      withParser("-vxxx", fakePlan)() must throwAn[ExitException]("Unknown verification: 'xxx', supported verifications are: off, warn, require")
+      withParser("-v", "warn", fakePlan)(
+        _.verification ==== Verification.WARN,
         _.exportFile ==== null,
       )
-      withParser("-vOfF", "--", fakePlan)(
-        _.verification ==== Verification.OFF,
+      withParser("-vWaRn", "--", fakePlan)(
+        _.verification ==== Verification.WARN,
         _.exportFile ==== null,
       )
-      withParser("-v", "off", "-v", "require", fakePlan)(
+      withParser("-v", "warn", "-v", "require", fakePlan, fakeExport)(
         _.verification ==== Verification.REQUIRE,
-        _.exportFile ==== null,
+        _.exportFile ==== new File(fakeExport),
       )
     }
 
-    "complex" >> {
-      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-v", "require", fakePlan)(
+    "Verification 'require' demands an export argument" >> {
+      withParser("-vrequire", fakePlan)() must
+        throwA[ExitException]("""\[verification\] is set to 'require', but \[export file\] was not provided""")
+    }
+
+    "Complex additional options parsing with overrides" >> {
+      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-v", "warn", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
         _.algorithm ==== "SHA-256",
         _.concurrency ==== 2,
-        _.verification ==== Verification.REQUIRE,
+        _.verification ==== Verification.WARN,
         _.hashPlanFile ==== new File(fakePlan),
         _.exportFile ==== null,
       )
-      withParser("-vWaRn", "-a", "MD5", "-c123", "-l", "ERROR", "-aSHA3-512", "--", "-aplan", "-vxport")(
+      withParser("-vWaRn", "-a", "MD5", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-512/256", "--", "-aplan", "-vexport")(
         _.logLevel ==== Logger.Level.ERROR,
-        _.algorithm ==== "SHA3-512",
+        _.algorithm ==== "SHA-512/256",
         _.concurrency ==== 123,
-        _.verification ==== Verification.WARN,
+        _.verification ==== Verification.REQUIRE,
         _.hashPlanFile ==== new File("-aplan"),
-        _.exportFile ==== new File("-vxport"),
+        _.exportFile ==== new File("-vexport"),
       )
     }
   }

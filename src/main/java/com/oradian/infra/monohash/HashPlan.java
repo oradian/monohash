@@ -2,6 +2,9 @@ package com.oradian.infra.monohash;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +17,6 @@ import static com.oradian.infra.monohash.Logger.NL;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class HashPlan {
-    public final File plan;
     public final String basePath;
     public final List<String> whitelist;
     public final Pattern blacklist;
@@ -22,17 +24,14 @@ public class HashPlan {
     /**
      * HashPlan holds instructions on which files and folders will be included in hashing
      *
-     * @param plan      the file from which instructions were read
      * @param basePath  the absolute path with a trailing slash - all reporting and relative path resolution will use this
      * @param whitelist a list of files and directories which must exist, which will be used for hashing
      * @param blacklist a single regex containing all the ignore patterns for skipping files during hashing
      */
     public HashPlan(
-            final File plan,
             final String basePath,
             final List<String> whitelist,
             final Pattern blacklist) {
-        this.plan = plan;
         this.basePath = basePath;
         this.whitelist = whitelist;
         this.blacklist = blacklist;
@@ -145,17 +144,9 @@ public class HashPlan {
         return new ArrayList<>(dotPatch);
     }
 
-    static HashPlan apply(final Logger logger, final File plan) throws IOException {
-        final File canoPlan = plan.getCanonicalFile();
-        final File planParent = canoPlan.getParentFile();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Reading hash plan: '" + canoPlan + "' ...");
-        }
-        final String body = new String(Files.readAllBytes(canoPlan.toPath()), UTF_8);
-
+    static HashPlan apply(final Logger logger, final File planParent, final String plan) {
         // split on CR/LF and remove trailing whitespaces from each line
-        final List<String> lines = Arrays.stream(body.split("[ \t]*([\r\n]+|$)"))
+        final List<String> lines = Arrays.stream(plan.split("[ \t]*([\r\n]+|$)"))
                 .filter(line -> !line.isEmpty()).collect(Collectors.toList());
         if (logger.isTraceEnabled()) {
             logger.trace("Read hash plan:" + NL + String.join(NL, lines));
@@ -168,6 +159,31 @@ public class HashPlan {
 
         final Pattern blacklist = compileBlacklist(logger, lines);
         final List<String> whitelist = extractWhitelist(logger, basePath, lines);
-        return new HashPlan(canoPlan, basePath, whitelist, blacklist);
+        return new HashPlan(basePath, whitelist, blacklist);
+    }
+
+    static HashPlan apply(final Logger logger, final File planParent, final byte[] plan) throws CharacterCodingException {
+        // Use CharsetDecoder in order to explode on Character decoding issues
+        // Vanilla String / Charset functions would silently skip errors and replace them with '�'
+        final CharsetDecoder utf8 = UTF_8.newDecoder();
+        final String planString = utf8.decode(ByteBuffer.wrap(plan)).toString();
+        return apply(logger, planParent, planString);
+    }
+
+    static HashPlan apply(final Logger logger, final File plan) throws IOException {
+        final File canoPlan = plan.getCanonicalFile();
+        if (canoPlan.isDirectory()) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Hash plan was a directory, proceeding with synthetic [hash plan] instead ...");
+            }
+            return apply(logger, canoPlan, "");
+        }
+        final File planParent = canoPlan.getParentFile();
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Reading hash plan: '" + canoPlan + "' ...");
+        }
+        final byte[] planBytes = Files.readAllBytes(canoPlan.toPath());
+        return apply(logger, planParent, planBytes);
     }
 }

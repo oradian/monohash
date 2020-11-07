@@ -150,7 +150,7 @@ class WhiteWalker {
                         final long tookMs = System.currentTimeMillis() - startAt;
                         msAdjustment += tookMs - LOGGING_INTERVAL_MS - lastTookMs;
                         lastTookMs = tookMs;
-                        final double seconds = tookMs / 1000.0;
+                        final double seconds = tookMs / 1e3;
                         final int filesSpeed = seconds > 0.0 ? (int) (filesCount / seconds) : 0;
                         final double sizeSpeed = seconds > 0.0 ? sizeCount / (double) (1 << 20) / seconds : 0.0;
                         final String errorNotice = workerError.get() == null ? "" : " [stopping early due to errors]";
@@ -207,7 +207,7 @@ class WhiteWalker {
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
             if (file.isDirectory() && !relativePath.endsWith("/") && logger.isWarnEnabled()) {
-                logger.warn("Relative path '" + relativePath + "' is a directory - please append a trailing / in the plan: '" + hashPlan.plan + "'");
+                logger.warn("Relative path '" + relativePath + "' is a directory - please append a trailing / in the [hash plan]");
             }
             workQueue.add(file);
         }

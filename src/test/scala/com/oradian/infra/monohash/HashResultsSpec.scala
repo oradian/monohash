@@ -12,7 +12,7 @@ import org.specs2.matcher.MatchResult
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 
-class HashResultsSpec extends MutableSpecification {
+class HashResultsSpec extends MutableSpec {
   private[this] val logger: LoggingLogger = new LoggingLogger()
   private[this] val Algorithm = "SHA-1"
   private[this] val LengthInBytes = MessageDigest.getInstance("SHA-1").getDigestLength
@@ -30,7 +30,7 @@ class HashResultsSpec extends MutableSpecification {
     }.toMap.asJava).entrySet()
   )
 
-  "save / load roundtrip test" >> {
+  "Save / load roundtrip test" >> {
     val hashResults = genRandomHashResults()
     val roundtripFile = File.createTempFile("hashResults-", "." + Algorithm.toLowerCase(Locale.ROOT))
 
@@ -53,7 +53,7 @@ class HashResultsSpec extends MutableSpecification {
   }
 
   private[this] def test(src: HashResults, dst: HashResults, expected: String): MatchResult[String] =
-    HashResults.diff(src, dst) ==== expected.replace("\n", Logger.NL)
+    HashResults.diff(src, dst).toString ==== expected.replace("\n", Logger.NL)
 
   private[this] def toHR(files: (String, Char)*): HashResults = {
     val results = files map { case (path, body) =>
@@ -64,8 +64,8 @@ class HashResultsSpec extends MutableSpecification {
     }).asJavaCollection)
   }
 
-  "diff test" >> {
-    "files added" >> test(
+  "Diff test" >> {
+    "Files added" >> test(
       toHR("To stay the same" -> '2'),
       toHR("To stay the same" -> '2', "To be added" -> 'A'),
       """Added files:
@@ -83,7 +83,7 @@ class HashResultsSpec extends MutableSpecification {
 
 """)
 
-    "files changed" >> test(
+    "Files changed" >> test(
       toHR("To be changed" -> '1', "To also be changed" -> '2', "To stay the same" -> 'E'),
       toHR("To be changed" -> 'A', "To also be changed" -> 'B', "To stay the same" -> 'E'),
       """Changed files:
@@ -92,7 +92,7 @@ class HashResultsSpec extends MutableSpecification {
 
 """)
 
-    "files deleted" >> test(
+    "Files deleted" >> test(
       toHR("To stay the same" -> '2', "To be deleted" -> 'F'),
       toHR("To stay the same" -> '2'),
       """Deleted files:
@@ -100,7 +100,7 @@ class HashResultsSpec extends MutableSpecification {
 
 """)
 
-    "mixed changes" >> test(
+    "Mixed changes" >> test(
       toHR(
         "To be deleted" -> '1',
         "To be changed" -> '2',

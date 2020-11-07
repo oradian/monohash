@@ -1,20 +1,22 @@
 package com.oradian.infra.monohash
 
 import java.io.File
+import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
-class HashPlanSpec extends MutableSpecification {
+class HashPlanSpec extends MutableSpec {
   private[this] val logger = new LoggingLogger
 
   private[this] def test(plan: String): HashPlan =
     HashPlan.apply(logger, new File(resources + plan + "/.monohash"))
 
-  "Use canonical paths in hash plan" >> {
-    test("basePath/01-empty/../00-default").plan ==== new File(resources + "basePath/00-default/.monohash")
-  }
-
-  "Use canonical paths in hash plan" >> {
-    test("basePath/01-empty/../00-default").plan ==== new File(resources + "basePath/00-default/.monohash")
+  "Enforces UTF-8" >> {
+    "Explodes on invalid encoding" >> {
+      test("hashPlan/00-incorrect-encoding") must throwA[MalformedInputException]
+    }
+    "Accepts Unicode via UTF-8" >> {
+      test("hashPlan/01-correct-encoding").whitelist ==== JArrays.asList(resources + "hashPlan/01-correct-encoding/$ £ ¥ €")
+    }
   }
 
   "Ability to override default basePath" >> {
@@ -24,6 +26,10 @@ class HashPlanSpec extends MutableSpecification {
     test("basePath/03-duplicate").basePath ==== resources + "basePath/02-override/"
     test("basePath/04-multiple") must throwA(new IllegalArgumentException("There is more than one base path override: '@../02-override/', '@../03-duplicate/'"))
     test("basePath/05-non-existent").basePath ==== resources + "basePath/05-non-existent/no-show/"
+  }
+
+  "Use canonical paths throughout hash plan" >> {
+    test("basePath/01-empty/../00-default").basePath ==== resources + "basePath/00-default/"
   }
 
   "Blacklisting support" >> {
@@ -37,6 +43,17 @@ class HashPlanSpec extends MutableSpecification {
     test("whitelist/00-default").whitelist ==== JArrays.asList(resources + "whitelist/00-default/")
     test("whitelist/01-dot").whitelist ==== JArrays.asList(resources + "whitelist/01-dot/")
     test("whitelist/02-non-existent").whitelist ==== JArrays.asList(resources + "whitelist/02-non-existent/no-show/")
-    test("whitelist/03-escapes").whitelist ==== JArrays.asList(resources + "whitelist/03-escapes/!important!.txt", resources + "whitelist/03-escapes/@sbt.boot.properties", resources + "whitelist/03-escapes/#1.log")
+    test("whitelist/03-escapes").whitelist ==== JArrays.asList(
+      resources + "whitelist/03-escapes/!important!.txt",
+      resources + "whitelist/03-escapes/@sbt.boot.properties",
+      resources + "whitelist/03-escapes/#1.log",
+    )
+  }
+
+  "Process directory as empty hash plan" >> {
+    val hashPlan = HashPlan.apply(logger, new File(resources))
+    hashPlan.basePath ==== resources
+    hashPlan.whitelist.isEmpty
+    hashPlan.blacklist ==== null
   }
 }
