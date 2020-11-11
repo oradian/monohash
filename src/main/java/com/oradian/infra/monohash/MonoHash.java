@@ -11,9 +11,7 @@ public class MonoHash {
     public static void main(final String[] args) {
         try {
             final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(System.err, logLevel));
-            final byte[] totalHash = new MonoHash(parser.logger)
-                    .run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
-                    .totalHash();
+            final byte[] totalHash = new MonoHash(parser.logger).run(parser).totalHash();
             System.out.println(Hex.toHex(totalHash));
             System.exit(0);
         } catch (final ExitException e) {
@@ -31,7 +29,11 @@ public class MonoHash {
         this.logger = logger;
     }
 
-    public HashResults run(final File hashPlan, final File export, final String algorithm, final int concurrency, final Verification verification) throws Exception {
+    public HashResults run(final CmdLineParser parser) throws Exception {
+        return run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.envelope, parser.concurrency, parser.verification);
+    }
+
+    public HashResults run(final File hashPlan, final File export, final String algorithm, final Envelope envelope, final int concurrency, final Verification verification) throws Exception {
         final File planFile = hashPlan.getCanonicalFile();
         if (!planFile.exists()) {
             throw new IOException("[hash plan file] must point to an existing file or directory, got: " + hashPlan);
@@ -82,7 +84,7 @@ public class MonoHash {
         }
 
         final long executeStartAt = System.currentTimeMillis();
-        final HashResults hashResults = WhiteWalker.apply(logger, algorithm, plan, concurrency);
+        final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, envelope, concurrency);
         if (logger.isInfoEnabled()) {
             logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec", nf(hashResults.size()), (System.currentTimeMillis() - executeStartAt) / 1e3));
         }

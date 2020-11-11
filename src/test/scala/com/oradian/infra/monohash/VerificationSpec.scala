@@ -16,7 +16,7 @@ class VerificationSpec extends MutableSpec {
       val exportTodo = exportTest(ws)
       val exportFile = exportTodo.map(_._1).orNull
       try {
-        val hashResults = new MonoHash(logger).run(new File(ws), exportFile, "MD5", 2, verification)
+        val hashResults = new MonoHash(logger).run(new File(ws), exportFile, "MD5", Envelope.RAW, 2, verification)
         Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
       } finally {
         exportTodo.flatMap(_._2) match {
@@ -64,7 +64,7 @@ class VerificationSpec extends MutableSpec {
         val exportPath = Paths.get(output + "monohash.export")
         Files.write(exportPath, previousExport.getBytes(UTF_8))
         try {
-          val hashResults = new MonoHash(logger).run(new File(source), exportPath.toFile, "MD5", 2, verification)
+          val hashResults = new MonoHash(logger).run(new File(source), exportPath.toFile, "MD5", Envelope.RAW, 2, verification)
           Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
         } finally {
           // check export and logger even if MonoHash explodes above

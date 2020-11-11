@@ -14,7 +14,7 @@ class WhiteWalkerSpec extends MutableSpec {
   private[this] def test(path: String)(expectedFiles: String*): MatchResult[Seq[(String, Seq[Byte])]] = {
     val planPath = new File(resources + s"whiteWalker/$path/.monohash")
     val hashPlan = HashPlan.apply(logger, planPath)
-    val actualHashResults = WhiteWalker.apply(logger, Algorithm, hashPlan, 1).asScala.toSeq.map(kv => (kv.getKey, kv.getValue.toSeq))
+    val actualHashResults = WhiteWalker.apply(logger, hashPlan, Algorithm, Envelope.RAW, 1).asScala.toSeq.map(kv => (kv.getKey, kv.getValue.toSeq))
 
     val expectedHashResults = expectedFiles.toSeq map { file =>
       val nameHash = MessageDigest.getInstance(Algorithm)

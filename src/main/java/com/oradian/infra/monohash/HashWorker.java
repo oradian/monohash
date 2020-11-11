@@ -5,19 +5,24 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 public class HashWorker {
+    private static final int BUFFER_SIZE = 64 * 1024;
+
     private final Logger logger;
     private final MessageDigest digest;
+    private final Envelope envelope;
     private final ByteBuffer buffer;
 
     public final int lengthInBytes;
 
-    public HashWorker(final Logger logger, final MessageDigest digest) {
+    public HashWorker(final Logger logger, final MessageDigest digest, final Envelope envelope) {
         this.logger = logger;
         this.digest = digest;
-        buffer = ByteBuffer.allocateDirect(64 * 1024);
+        this.envelope = envelope;
+        buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
         lengthInBytes = digest.getDigestLength();
     }
 
@@ -30,6 +35,11 @@ public class HashWorker {
         try (final FileInputStream fis = new FileInputStream(file)) {
             final FileChannel fc = fis.getChannel();
             digest.reset();
+            if (envelope == Envelope.GIT) {
+                final byte[] header = ("blob " + fc.size() + '\u0000').getBytes(StandardCharsets.ISO_8859_1);
+                digest.update(header);
+            }
+
             while (true) {
                 buffer.clear();
                 final int read = fc.read(buffer);

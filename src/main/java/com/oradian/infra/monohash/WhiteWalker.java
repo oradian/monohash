@@ -18,6 +18,7 @@ import static com.oradian.infra.monohash.MonoHash.nf;
 class WhiteWalker {
     private final Logger logger;
     private final String algorithm;
+    private final Envelope envelope;
     private final HashPlan hashPlan;
     private final Queue<File> workQueue;
 
@@ -34,12 +35,14 @@ class WhiteWalker {
     private WhiteWalker(
             final Logger logger,
             final String algorithm,
+            final Envelope envelope,
             final HashPlan hashPlan,
             final Queue<File> workQueue,
             final Semaphore workersFinished,
             final AtomicReference<Exception> workerError) {
         this.logger = logger;
         this.algorithm = algorithm;
+        this.envelope = envelope;
         this.hashPlan = hashPlan;
         this.workQueue = workQueue;
 
@@ -69,7 +72,7 @@ class WhiteWalker {
             logger.trace("Started worker " + workerId + " ...");
         }
         final MessageDigest digest = MessageDigest.getInstance(algorithm);
-        final HashWorker hasher = new HashWorker(logger, digest);
+        final HashWorker hasher = new HashWorker(logger, digest, envelope);
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
@@ -202,7 +205,7 @@ class WhiteWalker {
         return path.substring(basePath.length());
     }
 
-    public static HashResults apply(final Logger logger, final String algorithm, final HashPlan hashPlan, final int concurrency) throws Exception {
+    public static HashResults apply(final Logger logger, final HashPlan hashPlan, final String algorithm, final Envelope envelope, final int concurrency) throws Exception {
         final Queue<File> workQueue = new ArrayDeque<>();
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
@@ -216,7 +219,7 @@ class WhiteWalker {
 
         final Semaphore workersFinished = new Semaphore(1 - concurrency);
         final AtomicReference<Exception> workerError = new AtomicReference<>();
-        final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError);
+        final WhiteWalker ww = new WhiteWalker(logger, algorithm, envelope, hashPlan, workQueue, workersFinished, workerError);
 
         for (int i = 0; i < workers.length; i++) {
             final String workerId = "Worker #" + (i + 1);

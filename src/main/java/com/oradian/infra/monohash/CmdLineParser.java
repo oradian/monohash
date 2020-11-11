@@ -23,6 +23,7 @@ class CmdLineParser {
     private enum Option {
         LOG_LEVEL   ("-l", "log level",    "info", () -> ", allowed values: " + printSupportedLogLevels()),
         ALGORITHM   ("-a", "algorithm",    "SHA-1", () -> ", some allowed values: " + printSupportedAlgorithms(true)),
+        ENVELOPE    ("-e", "envelope",     "raw", () -> ", allowed values: " + printSupportedEnvelopes()),
         CONCURRENCY ("-c", "concurrency",  String.valueOf(getCurrentDefaultConcurrency()), () -> " - taken from number of CPUs, unless specified here"),
         VERIFICATION("-v", "verification", "off", () -> ", allowed values: " + printSupportedVerifications()),
         ;
@@ -69,6 +70,7 @@ class CmdLineParser {
 
     final Level logLevel;
     final String algorithm;
+    final Envelope envelope;
     final int concurrency;
     final Verification verification;
 
@@ -201,6 +203,33 @@ class CmdLineParser {
         }
     }
 
+    // -----------------------------------------------------------------------------------------------------------------
+
+    private static List<String> getSupportedEnvelopes() {
+        final List<String> envelopes = new ArrayList<>();
+        for (final Envelope v : Envelope.values()) {
+            envelopes.add(v.name().toLowerCase(Locale.ROOT));
+        }
+        return envelopes;
+    }
+
+    private static String printSupportedEnvelopes() {
+        return String.join(", ", getSupportedEnvelopes());
+    }
+
+    private static Envelope parseEnvelope(final List<String> args) throws ExitException {
+        String value = seekOption(args, Option.ENVELOPE);
+        if (value == null) {
+            value = Option.ENVELOPE.defaultValue;
+        }
+
+        try {
+            return Envelope.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (final IllegalArgumentException e) {
+            throw buildExitWithHelp("Unknown envelope: '" + value + "', supported envelopes are: " + printSupportedEnvelopes());
+        }
+    }
+
     // -----------------------------------------------------------------------------------------
 
     /** If concurrency is null, it will be sampled in runtime before beginning of work using this method */
@@ -281,6 +310,11 @@ class CmdLineParser {
         verification = parseVerification(remainingArgs);
         if (logger.isDebugEnabled()) {
             logger.debug("Using verification: " + verification);
+        }
+
+        envelope = parseEnvelope(remainingArgs);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Using envelope: " + verification);
         }
 
         if (!remainingArgs.isEmpty() && remainingArgs.get(0).equals(STOP_PARSING_FLAG)) {

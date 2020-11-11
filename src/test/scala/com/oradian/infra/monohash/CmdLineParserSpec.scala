@@ -50,6 +50,7 @@ class CmdLineParserSpec extends MutableSpec {
     withParser(fakePlan)(
       _.logLevel ==== Logger.Level.INFO,
       _.algorithm ==== "SHA-1",
+      _.envelope ==== Envelope.RAW,
       _.concurrency must be > 0,
       _.verification ==== Verification.OFF,
       _.hashPlanFile ==== new File(fakePlan),
@@ -92,6 +93,25 @@ class CmdLineParserSpec extends MutableSpec {
       )
       withParser("-a", "SHA-256", "-a", "SHA-512", fakePlan)(
         _.algorithm ==== "SHA-512",
+        _.exportFile ==== null,
+      )
+    }
+
+    "Envelope parsing" >> {
+      withParser("-e")() must throwAn[ExitException]("Missing value for envelope, last argument was an alone '-e'")
+      withParser("-e", "--")() must throwAn[ExitException]("Missing value for envelope, next argument was the stop flag '--'")
+      withParser("-e", fakePlan)() must throwAn[ExitException](s"Unknown envelope: '$fakePlan', supported envelopes are: raw, git")
+      withParser("-exxx", fakePlan)() must throwAn[ExitException]("Unknown envelope: 'xxx', supported envelopes are: raw, git")
+      withParser("-e", "git", fakePlan)(
+        _.envelope ==== Envelope.GIT,
+        _.exportFile ==== null,
+      )
+      withParser("-eGiT", "--", fakePlan)(
+        _.envelope ==== Envelope.GIT,
+        _.exportFile ==== null,
+      )
+      withParser("-e", "git", "-e", "raw", fakePlan)(
+        _.envelope ==== Envelope.RAW,
         _.exportFile ==== null,
       )
     }
@@ -142,17 +162,19 @@ class CmdLineParserSpec extends MutableSpec {
     }
 
     "Complex additional options parsing with overrides" >> {
-      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-v", "warn", fakePlan)(
+      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-e", "git", "-v", "warn", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
         _.algorithm ==== "SHA-256",
+        _.envelope ==== Envelope.GIT,
         _.concurrency ==== 2,
         _.verification ==== Verification.WARN,
         _.hashPlanFile ==== new File(fakePlan),
         _.exportFile ==== null,
       )
-      withParser("-vWaRn", "-a", "MD5", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-512/256", "--", "-aplan", "-vexport")(
+      withParser("-vWaRn", "-a", "MD5", "-e", "raw", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-512/256", "-eGIT", "--", "-aplan", "-vexport")(
         _.logLevel ==== Logger.Level.ERROR,
         _.algorithm ==== "SHA-512/256",
+        _.envelope ==== Envelope.GIT,
         _.concurrency ==== 123,
         _.verification ==== Verification.REQUIRE,
         _.hashPlanFile ==== new File("-aplan"),

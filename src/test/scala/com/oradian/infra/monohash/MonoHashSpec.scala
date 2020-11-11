@@ -15,7 +15,7 @@ class MonoHashSpec extends MutableSpec {
     val args = Array("-ltrace", plan)
     val parser = new CmdLineParser(args, _ => logger)
     val monoHash = new MonoHash(parser.logger)
-    val results = monoHash.run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
+    val results = monoHash.run(parser)
 
     val actualListing = (results.iterator.asScala map { entry =>
       entry.getKey -> Hex.toHex(entry.getValue)
@@ -45,7 +45,7 @@ class MonoHashSpec extends MutableSpec {
       val args = Array("-ltrace", plan, export)
       val parser = new CmdLineParser(args, _ => logger)
       val monoHash = new MonoHash(parser.logger)
-      val results = monoHash.run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
+      val results = monoHash.run(parser)
       val actualExportBytes = Files.readAllBytes(Paths.get(export))
       val actualHash = results.totalHash()
 
@@ -64,7 +64,7 @@ class MonoHashSpec extends MutableSpec {
     inWorkspace { ws =>
       val logger = new LoggingLogger
       val missingPlan = new File(ws + "non-existant")
-      new MonoHash(logger).run(missingPlan, null, "x", 1, null) must
+      new MonoHash(logger).run(missingPlan, null, "x", null, 1, null) must
         throwAn[IOException]("""\[hash plan file\] must point to an existing file or directory""")
     }
   }
@@ -75,7 +75,7 @@ class MonoHashSpec extends MutableSpec {
         val logger = new LoggingLogger
         val plan = new File(source)
         val exportDirectory = new File(output)
-        new MonoHash(logger).run(plan, exportDirectory, "SHA-256", 2, Verification.OFF) must
+        new MonoHash(logger).run(plan, exportDirectory, "SHA-256", Envelope.RAW, 2, Verification.OFF) must
           throwAn[IOException]("""\[export file\] is not a file: """)
       }
     }
