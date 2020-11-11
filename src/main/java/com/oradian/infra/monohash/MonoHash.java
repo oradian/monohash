@@ -65,13 +65,10 @@ public class MonoHash {
                         }
                     }
                 }
-            } else {
-                if (exportFile.exists()) {
-                    throw new IOException("[export file] is not a file: " + exportFile);
-                }
-                if (verification == Verification.REQUIRE) {
-                    throw new IOException("[verification] is set to 'require', but could not load previous [export file]: " + exportFile);
-                }
+            } else if (exportFile.exists()) {
+                throw new IOException("[export file] is not a file: " + exportFile);
+            } else if (verification == Verification.REQUIRE) {
+                throw new IOException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile);
             }
             if (logger.isInfoEnabled()) {
                 logger.info("Using [export file]: " + exportFile);

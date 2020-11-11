@@ -1,6 +1,6 @@
 package com.oradian.infra.monohash
 
-import java.io.File
+import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
@@ -38,26 +38,46 @@ class MonoHashSpec extends MutableSpec {
   }
 
   "System test plan+export" >> {
-    val workspace = new File(projectRoot + "target/workspace")
-    workspace.mkdir()
+    inWorkspace { workspace =>
+      val logger = new LoggingLogger
+      val plan = resources + "basePath/00-default/.monohash"
+      val export = workspace + "00-export.txt"
+      val args = Array("-ltrace", plan, export)
+      val parser = new CmdLineParser(args, _ => logger)
+      val monoHash = new MonoHash(parser.logger)
+      val results = monoHash.run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
+      val actualExportBytes = Files.readAllBytes(Paths.get(export))
+      val actualHash = results.totalHash()
 
-    val logger = new LoggingLogger
-    val plan = resources + "basePath/00-default/.monohash"
-    val export = workspace.getPath + "/00-export.txt"
-    val args = Array("-ltrace", plan, export)
-    val parser = new CmdLineParser(args, _ => logger)
-    val monoHash = new MonoHash(parser.logger)
-    val results = monoHash.run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.concurrency, parser.verification)
-    val actualExportBytes = Files.readAllBytes(Paths.get(export))
-    val actualHash = results.totalHash()
+      val md = MessageDigest.getInstance("SHA-1")
+      val emptyHash = Hex.toHex(md.digest()) // file was empty
+      val expectedExportBytes = s"$emptyHash .monohash\n".getBytes(UTF_8)
+      md.reset()
+      val expectedHash = md.digest(expectedExportBytes)
 
-    val md = MessageDigest.getInstance("SHA-1")
-    val emptyHash = Hex.toHex(md.digest())
-    val expectedExportBytes = s"$emptyHash .monohash\n".getBytes(UTF_8)
-    md.reset()
-    val expectedHash = md.digest(expectedExportBytes)
+      actualExportBytes ==== expectedExportBytes
+      actualHash ==== expectedHash
+    }
+  }
 
-    actualExportBytes ==== expectedExportBytes
-    actualHash ==== expectedHash
+  "Hash plan must exist" >> {
+    inWorkspace { ws =>
+      val logger = new LoggingLogger
+      val missingPlan = new File(ws + "non-existant")
+      new MonoHash(logger).run(missingPlan, null, "x", 1, null) must
+        throwAn[IOException]("""\[hash plan file\] must point to an existing file or directory""")
+    }
+  }
+
+  "Export path must be a file" >> {
+    inWorkspace { source =>
+      inWorkspace { output =>
+        val logger = new LoggingLogger
+        val plan = new File(source)
+        val exportDirectory = new File(output)
+        new MonoHash(logger).run(plan, exportDirectory, "SHA-256", 2, Verification.OFF) must
+          throwAn[IOException]("""\[export file\] is not a file: """)
+      }
+    }
   }
 }

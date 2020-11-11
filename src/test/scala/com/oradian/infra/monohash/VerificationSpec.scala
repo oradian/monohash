@@ -1,6 +1,7 @@
 package com.oradian.infra.monohash
 
 import java.io.{File, IOException}
+import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 
 import com.oradian.infra.monohash.LoggingLogger.LogMsg
@@ -8,14 +9,22 @@ import com.oradian.infra.monohash.MonoHash.ExitException
 import org.specs2.matcher.MatchResult
 
 class VerificationSpec extends MutableSpec {
-  private[this] def testNoExport(verification: Verification): MatchResult[_] = {
+  private[this] def testNoExport(verification: Verification, exportTest: String => Option[(File, Option[String])]): MatchResult[_] = {
     val logger = new LoggingLogger
-    inWorkspace { source =>
-      Files.writeString(Paths.get(source + "three-A.txt"), "AAA")
+    inWorkspace { ws =>
+      Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
+      val exportTodo = exportTest(ws)
+      val exportFile = exportTodo.map(_._1).orNull
       try {
-        val hashResults = new MonoHash(logger).run(new File(source), null, "MD5", 2, verification)
+        val hashResults = new MonoHash(logger).run(new File(ws), exportFile, "MD5", 2, verification)
         Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
       } finally {
+        exportTodo.flatMap(_._2) match {
+          case Some(expected) =>
+            Files.readAllBytes(exportFile.toPath) ==== expected.getBytes(UTF_8)
+          case _ =>
+            (exportFile == null || !exportFile.exists()) ==== true
+        }
         // check logger for no warnings and errors even if MonoHash explodes above
         logger.messages(Logger.Level.WARN) ==== Nil
       }
@@ -24,12 +33,25 @@ class VerificationSpec extends MutableSpec {
 
   "When export file is not provided" >> {
     "Verification 'off' & 'warn' will work" >> {
-      testNoExport(Verification.OFF)
-      testNoExport(Verification.WARN)
+      testNoExport(Verification.OFF, _ => None)
+      testNoExport(Verification.WARN, _ => None)
     }
     "Verification 'require' will explode" >> {
-      testNoExport(Verification.REQUIRE) must
+      testNoExport(Verification.REQUIRE, _ => None) must
         throwAn[IOException]("""\[verification\] is set to 'require', but \[export file\] was not provided""")
+    }
+  }
+
+  "When export file is provided, but missing" >> {
+    val expectedExport = "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n"
+
+    "Verification 'off' & 'warn' will work" >> {
+      testNoExport(Verification.OFF, ws => Some((new File(ws, "export.missing"), Some(expectedExport))))
+      testNoExport(Verification.WARN, ws => Some((new File(ws, "export.missing"), Some(expectedExport))))
+    }
+    "Verification 'require' will explode" >> {
+      testNoExport(Verification.REQUIRE, ws => Some((new File(ws, "export.missing"), None))) must
+        throwAn[IOException]("""\[verification\] is set to 'require', but previous \[export file\] was not found: """)
     }
   }
 
@@ -37,16 +59,16 @@ class VerificationSpec extends MutableSpec {
                               (loggerCheck: LoggingLogger => MatchResult[_]): MatchResult[_] = {
     val logger = new LoggingLogger
     inWorkspace { source =>
-      Files.writeString(Paths.get(source + "three-A.txt"), "AAA")
+      Files.write(Paths.get(source + "three-A.txt"), "AAA".getBytes(UTF_8))
       inWorkspace { output =>
         val exportPath = Paths.get(output + "monohash.export")
-        Files.writeString(exportPath, previousExport)
+        Files.write(exportPath, previousExport.getBytes(UTF_8))
         try {
           val hashResults = new MonoHash(logger).run(new File(source), exportPath.toFile, "MD5", 2, verification)
           Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
         } finally {
           // check export and logger even if MonoHash explodes above
-          Files.readString(exportPath) ==== expectedExport and loggerCheck(logger)
+          Files.readAllBytes(exportPath) ==== expectedExport.getBytes(UTF_8) and loggerCheck(logger)
         }
       }
     }
