@@ -61,6 +61,7 @@ class CmdLineParserSpec extends MutableSpec {
   "Option parsing" >> {
     "Log level parsing" >> {
       withParser("-l")() must throwAn[ExitException]("Missing value for log level, last argument was an alone '-l'")
+      withParser("-l", "")() must throwAn[ExitException]("Empty value provided for log level")
       withParser("-l", "--")() must throwAn[ExitException]("Missing value for log level, next argument was the stop flag '--'")
       withParser("-l", fakePlan)() must throwAn[ExitException](s"Unknown log level: '$fakePlan', supported log levels are: off, error, warn, info, debug, trace")
       withParser("-l", "xxx", fakePlan)() must throwAn[ExitException]("Unknown log level: 'xxx', supported log levels are: off, error, warn, info, debug, trace")
@@ -80,6 +81,7 @@ class CmdLineParserSpec extends MutableSpec {
 
     "Algorithm parsing" >> {
       withParser("-a")() must throwAn[ExitException]("Missing value for algorithm, last argument was an alone '-a'")
+      withParser("-a", "")() must throwAn[ExitException]("Empty value provided for algorithm")
       withParser("-a", "--")() must throwAn[ExitException]("Missing value for algorithm, next argument was the stop flag '--'")
       withParser("-a", fakePlan)() must throwAn[ExitException](s"Algorithm '$fakePlan' is not supported. Supported algorithms:")
       withParser("-axxx", fakePlan)() must throwAn[ExitException]("Algorithm 'xxx' is not supported. Supported algorithms:")
@@ -99,6 +101,7 @@ class CmdLineParserSpec extends MutableSpec {
 
     "Envelope parsing" >> {
       withParser("-e")() must throwAn[ExitException]("Missing value for envelope, last argument was an alone '-e'")
+      withParser("-e", "")() must throwAn[ExitException]("Empty value provided for envelope")
       withParser("-e", "--")() must throwAn[ExitException]("Missing value for envelope, next argument was the stop flag '--'")
       withParser("-e", fakePlan)() must throwAn[ExitException](s"Unknown envelope: '$fakePlan', supported envelopes are: raw, git")
       withParser("-exxx", fakePlan)() must throwAn[ExitException]("Unknown envelope: 'xxx', supported envelopes are: raw, git")
@@ -118,6 +121,7 @@ class CmdLineParserSpec extends MutableSpec {
 
     "Concurrency parsing" >> {
       withParser("-c")() must throwAn[ExitException]("Missing value for concurrency, last argument was an alone '-c'")
+      withParser("-c", "")() must throwAn[ExitException]("Empty value provided for concurrency")
       withParser("-c", "--")() must throwAn[ExitException]("Missing value for concurrency, next argument was the stop flag '--'")
       withParser("-c", fakePlan)() must throwAn[ExitException](s"Invalid concurrency setting: '$fakePlan', expecting a positive integer")
       withParser("-cxxx", fakePlan)() must throwAn[ExitException]("Invalid concurrency setting: 'xxx', expecting a positive integer")
@@ -139,6 +143,7 @@ class CmdLineParserSpec extends MutableSpec {
 
     "Verification parsing" >> {
       withParser("-v")() must throwAn[ExitException]("Missing value for verification, last argument was an alone '-v'")
+      withParser("-v", "")() must throwAn[ExitException]("Empty value provided for verification")
       withParser("-v", "--")() must throwAn[ExitException]("Missing value for verification, next argument was the stop flag '--'")
       withParser("-v", fakePlan)() must throwAn[ExitException](s"Unknown verification: '$fakePlan', supported verifications are: off, warn, require")
       withParser("-vxxx", fakePlan)() must throwAn[ExitException]("Unknown verification: 'xxx', supported verifications are: off, warn, require")
@@ -181,5 +186,10 @@ class CmdLineParserSpec extends MutableSpec {
         _.exportFile ==== new File("-vexport"),
       )
     }
+  }
+
+  "Too many arguments" >> {
+    withParser(fakePlan, fakeExport, "xyzzy")() must
+      throwA[ExitException]("""There are too many arguments provided after \[hash plan file\] and \[export file\], first was: 'xyzzy'""")
   }
 }

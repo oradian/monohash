@@ -13,7 +13,6 @@ javacOptions in doc := Seq(
   "-encoding", "UTF-8",
   "-source", "8",
 )
-
 javacOptions := (javacOptions in doc).value ++ (Seq(
   "-deprecation",
   "-parameters",
@@ -35,5 +34,10 @@ scalacOptions := Seq(
 )
 
 fork in Test := true
+
+jacocoReportSettings := JacocoReportSettings(
+  // output to HTML for humans, and XML for Codecov
+  formats = Seq(JacocoReportFormats.ScalaHTML, JacocoReportFormats.XML),
+)
 
 Global / onChangedBuildSource := ReloadOnSourceChanges

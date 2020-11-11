@@ -2,7 +2,8 @@
 [![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=master)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
-[![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=oradian/monohash&amp;utm_campaign=Badge_Grade)
+[![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
+[![Codecov](https://codecov.io/gh/oradian/monohash/branch/master/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring projects which are impervious to these particular changes.
@@ -15,9 +16,9 @@ This is where MonoHash saves the day. It allows developers to define different h
 
 MonoHash is useful even for single projects repositories because it allows for easily defining the border between runtime code and test code - this means that CI/CD can cache a build if only the tests have changed, and only compile the tests again (for that single project).
 
-MonoHash is fast. Running on a cold JVM via the `java -jar monohash.jar` on the checked out [Linux repository](https://github.com/torvalds/linux), hosted on a traditional HDD produces the following output:
+MonoHash is fast. Running on a cold JVM via the `java -jar monohash.jar` on the [Linux repository](https://github.com/torvalds/linux) completes in under a second on [Hetzner's PX line](https://www.hetzner.com/dedicated-rootserver/px62-nvme):
 ```
-[info] Hashed 63,120 files with a total of 812,456,520 bytes in 6.569 sec (average speed: 9,608 files/sec, 118.0 MB/sec)
+[info] Hashed 74,813 files with a total of 988,947,331 bytes in 0.789 sec (average speed: 94,820 files/sec, 1195.4 MB/sec)```
 ```
 
 ## Usage
