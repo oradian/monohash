@@ -30,7 +30,22 @@ public class MonoHash {
     }
 
     public HashResults run(final CmdLineParser parser) throws Exception {
-        return run(parser.hashPlanFile, parser.exportFile, parser.algorithm, parser.envelope, parser.concurrency, parser.verification);
+        final File hashPlanFile = new File(parser.hashPlanPath);
+        if ((parser.hashPlanPath.endsWith("\\") || parser.hashPlanPath.endsWith("/")) && hashPlanFile.isFile()) {
+            throw new IOException("The [hash plan file] must not end with a slash: " + parser.hashPlanPath);
+        }
+
+        final File exportFile;
+        if (parser.exportPath != null) {
+            exportFile = new File(parser.exportPath);
+            if (parser.exportPath.endsWith("\\") || parser.exportPath.endsWith("/")) {
+                throw new IOException("The [export file] must not end with a slash: " + parser.exportPath);
+            }
+        } else {
+            exportFile = null;
+        }
+
+        return run(hashPlanFile, exportFile, parser.algorithm, parser.envelope, parser.concurrency, parser.verification);
     }
 
     public HashResults run(final File hashPlan, final File export, final String algorithm, final Envelope envelope, final int concurrency, final Verification verification) throws Exception {
@@ -39,7 +54,11 @@ public class MonoHash {
             throw new IOException("[hash plan file] must point to an existing file or directory, got: " + hashPlan);
         }
         if (logger.isInfoEnabled()) {
-            logger.info("Using [hash plan file]: " + planFile + " ...");
+            if (planFile.isDirectory()) {
+                logger.info("Using [hash plan directory]: " + planFile + " ...");
+            } else {
+                logger.info("Using [hash plan file]: " + planFile + " ...");
+            }
         }
 
         HashResults previousResults = null;
@@ -97,15 +116,15 @@ public class MonoHash {
             }
             if (!diff.isEmpty()) {
                 if (verification == Verification.WARN) {
-                    for (final String diffLine : diff.toLines()) {
-                        if (logger.isWarnEnabled()) { // optimise
-                            logger.warn(diffLine);
+                    if (logger.isWarnEnabled()) {
+                        for (final String diffLine : diff.toLines()) {
+                            logger.warn(diffLine); // logging loop
                         }
                     }
                 } else if (verification == Verification.REQUIRE && logger.isErrorEnabled()) {
-                    for (final String diffLine : diff.toLines()) {
-                        if (logger.isErrorEnabled()) { // optimise
-                            logger.error(diffLine);
+                    if (logger.isErrorEnabled()) {
+                        for (final String diffLine : diff.toLines()) {
+                            logger.error(diffLine); // logging loop
                         }
                     }
                     throw new ExitException("[verification] was set to 'require' and there was a difference in export results, aborting!", 2);

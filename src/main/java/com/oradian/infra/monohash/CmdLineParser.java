@@ -3,7 +3,6 @@ package com.oradian.infra.monohash;
 import com.oradian.infra.monohash.Logger.Level;
 import com.oradian.infra.monohash.MonoHash.ExitException;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.security.MessageDigest;
@@ -75,8 +74,8 @@ class CmdLineParser {
     final Verification verification;
 
     final Logger logger;
-    final File hashPlanFile;
-    final File exportFile;
+    final String hashPlanPath;
+    final String exportPath;
 
     // -----------------------------------------------------------------------------------------
 
@@ -328,25 +327,20 @@ class CmdLineParser {
             throw buildExitWithHelp("You did not specify the [hash plan file]!");
         }
 
-        final String planPath = remainingArgs.remove(0);
-        if (planPath.isEmpty()) {
+        hashPlanPath = remainingArgs.remove(0);
+        if (hashPlanPath.isEmpty()) {
             throw buildExitWithHelp("Provided [hash plan file] was an empty string!");
         }
-        if (planPath.endsWith("/") && logger.isWarnEnabled()) {
-            logger.warn( "The hash plan file should not end with a slash: '" + planPath + "' - ignoring the ending slash");
-        }
-        hashPlanFile = new File(planPath);
         if (remainingArgs.isEmpty()) {
-            exportFile = null;
+            exportPath = null;
             if (verification == Verification.REQUIRE) {
                 throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided");
             }
         } else {
-            final String exportPath = remainingArgs.remove(0);
+            exportPath = remainingArgs.remove(0);
             if (exportPath.isEmpty()) {
                 throw buildExitWithHelp("Provided [export file] was an empty string!");
             }
-            exportFile = new File(exportPath);
         }
 
         if (!remainingArgs.isEmpty()) {

@@ -68,7 +68,7 @@ class VerificationSpec extends MutableSpec {
           Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
         } finally {
           // check export and logger even if MonoHash explodes above
-          Files.readAllBytes(exportPath) ==== expectedExport.getBytes(UTF_8) and loggerCheck(logger)
+          new String(Files.readAllBytes(exportPath), UTF_8) ==== expectedExport and loggerCheck(logger)
         }
       }
     }

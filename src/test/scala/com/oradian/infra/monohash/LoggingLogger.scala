@@ -1,5 +1,7 @@
 package com.oradian.infra.monohash
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicLong
 
 import com.oradian.infra.monohash.LoggingLogger._
@@ -34,7 +36,15 @@ class LoggingLogger extends Logger {
   private[this] def log(logLevel: Logger.Level, msg: String): Unit = {
     val logData = logs.get()
     val count = logData.checks(logLevel).decrementAndGet()
-    require(count >= 0, s"Tried to log at $logLevel logLevel without checking log logLevel first")
+    if (count < 0) {
+      val stackTrace = Thread.currentThread().getStackTrace()(3) // should always be three stacks away
+      val sourcePath = projectRoot + "src/main/java/" + stackTrace.getClassName.replace('.', '/') + ".java"
+      val sourceLine = Files.readAllLines(Paths.get(sourcePath), UTF_8).get(stackTrace.getLineNumber - 1).trim
+      assert(sourceLine.startsWith("logger."), "Logging line start mismatch")
+      if (!sourceLine.endsWith("// logging loop")) {
+        sys.error(s"Tried to log at $logLevel log level without checking log level first")
+      }
+    }
     logData.messages += LogMsg(logLevel, msg)
     if (TeeToStdOut) {
       println(s"[${logLevel.name.toLowerCase(java.util.Locale.ROOT)}] $msg")
@@ -47,14 +57,14 @@ class LoggingLogger extends Logger {
   }
 
   override def error(msg: String): Unit = log(Logger.Level.ERROR, msg)
-  override def warn (msg: String): Unit = log(Logger.Level.WARN,  msg)
-  override def info (msg: String): Unit = log(Logger.Level.INFO,  msg)
+  override def warn(msg: String): Unit = log(Logger.Level.WARN, msg)
+  override def info(msg: String): Unit = log(Logger.Level.INFO, msg)
   override def debug(msg: String): Unit = log(Logger.Level.DEBUG, msg)
   override def trace(msg: String): Unit = log(Logger.Level.TRACE, msg)
 
   override def isErrorEnabled: Boolean = check(Logger.Level.ERROR)
-  override def isWarnEnabled:  Boolean = check(Logger.Level.WARN )
-  override def isInfoEnabled:  Boolean = check(Logger.Level.INFO )
+  override def isWarnEnabled: Boolean = check(Logger.Level.WARN)
+  override def isInfoEnabled: Boolean = check(Logger.Level.INFO)
   override def isDebugEnabled: Boolean = check(Logger.Level.DEBUG)
   override def isTraceEnabled: Boolean = check(Logger.Level.TRACE)
 }

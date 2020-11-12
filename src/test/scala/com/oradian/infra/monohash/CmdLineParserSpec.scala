@@ -1,6 +1,5 @@
 package com.oradian.infra.monohash
 
-import java.io.File
 import java.util.UUID
 
 import com.oradian.infra.monohash.MonoHash.ExitException
@@ -36,13 +35,13 @@ class CmdLineParserSpec extends MutableSpec {
 
   "Simple hash plan" >> {
     withParser(fakePlan)(
-      _.hashPlanFile ==== new File(fakePlan),
-      _.exportFile ==== null,
+      _.hashPlanPath ==== fakePlan,
+      _.exportPath ==== null,
     )
 
     withParser(fakePlan, fakeExport)(
-      _.hashPlanFile ==== new File(fakePlan),
-      _.exportFile ==== new File(fakeExport),
+      _.hashPlanPath ==== fakePlan,
+      _.exportPath ==== fakeExport,
     )
   }
 
@@ -53,8 +52,8 @@ class CmdLineParserSpec extends MutableSpec {
       _.envelope ==== Envelope.RAW,
       _.concurrency must be > 0,
       _.verification ==== Verification.OFF,
-      _.hashPlanFile ==== new File(fakePlan),
-      _.exportFile ==== null,
+      _.hashPlanPath ==== fakePlan,
+      _.exportPath ==== null,
     )
   }
 
@@ -67,15 +66,15 @@ class CmdLineParserSpec extends MutableSpec {
       withParser("-l", "xxx", fakePlan)() must throwAn[ExitException]("Unknown log level: 'xxx', supported log levels are: off, error, warn, info, debug, trace")
       withParser("-l", "off", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-l", "OfF", "--", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-l", "off", "-l", "error", fakePlan)(
         _.logLevel ==== Logger.Level.ERROR,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
     }
 
@@ -87,15 +86,15 @@ class CmdLineParserSpec extends MutableSpec {
       withParser("-axxx", fakePlan)() must throwAn[ExitException]("Algorithm 'xxx' is not supported. Supported algorithms:")
       withParser("-a", "SHA-256", fakePlan)(
         _.algorithm ==== "SHA-256",
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-aSHA-256", "--", fakePlan)(
         _.algorithm ==== "SHA-256",
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-a", "SHA-256", "-a", "SHA-512", fakePlan)(
         _.algorithm ==== "SHA-512",
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
     }
 
@@ -107,15 +106,15 @@ class CmdLineParserSpec extends MutableSpec {
       withParser("-exxx", fakePlan)() must throwAn[ExitException]("Unknown envelope: 'xxx', supported envelopes are: raw, git")
       withParser("-e", "git", fakePlan)(
         _.envelope ==== Envelope.GIT,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-eGiT", "--", fakePlan)(
         _.envelope ==== Envelope.GIT,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-e", "git", "-e", "raw", fakePlan)(
         _.envelope ==== Envelope.RAW,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
     }
 
@@ -129,15 +128,15 @@ class CmdLineParserSpec extends MutableSpec {
       withParser("-c", "-12", fakePlan)() must throwAn[ExitException]("Concurrency must be a positive integer, got: '-12'")
       withParser("-c", "123", fakePlan)(
         _.concurrency ==== 123,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-c1234", "--", fakePlan)(
         _.concurrency ==== 1234,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-c", "1", "-c", "12345", fakePlan)(
         _.concurrency ==== 12345,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
     }
 
@@ -149,15 +148,15 @@ class CmdLineParserSpec extends MutableSpec {
       withParser("-vxxx", fakePlan)() must throwAn[ExitException]("Unknown verification: 'xxx', supported verifications are: off, warn, require")
       withParser("-v", "warn", fakePlan)(
         _.verification ==== Verification.WARN,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-vWaRn", "--", fakePlan)(
         _.verification ==== Verification.WARN,
-        _.exportFile ==== null,
+        _.exportPath ==== null,
       )
       withParser("-v", "warn", "-v", "require", fakePlan, fakeExport)(
         _.verification ==== Verification.REQUIRE,
-        _.exportFile ==== new File(fakeExport),
+        _.exportPath ==== fakeExport,
       )
     }
 
@@ -173,8 +172,8 @@ class CmdLineParserSpec extends MutableSpec {
         _.envelope ==== Envelope.GIT,
         _.concurrency ==== 2,
         _.verification ==== Verification.WARN,
-        _.hashPlanFile ==== new File(fakePlan),
-        _.exportFile ==== null,
+        _.hashPlanPath ==== fakePlan,
+        _.exportPath ==== null,
       )
       withParser("-vWaRn", "-a", "MD5", "-e", "raw", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-512/256", "-eGIT", "--", "-aplan", "-vexport")(
         _.logLevel ==== Logger.Level.ERROR,
@@ -182,8 +181,8 @@ class CmdLineParserSpec extends MutableSpec {
         _.envelope ==== Envelope.GIT,
         _.concurrency ==== 123,
         _.verification ==== Verification.REQUIRE,
-        _.hashPlanFile ==== new File("-aplan"),
-        _.exportFile ==== new File("-vexport"),
+        _.hashPlanPath ==== "-aplan",
+        _.exportPath ==== "-vexport",
       )
     }
   }
