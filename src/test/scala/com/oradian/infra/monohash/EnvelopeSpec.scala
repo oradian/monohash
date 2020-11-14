@@ -3,6 +3,7 @@ package com.oradian.infra.monohash
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
+import java.util.concurrent.atomic.LongAdder
 
 import scala.util.Random
 
@@ -16,9 +17,10 @@ class EnvelopeSpec extends MutableSpec {
       val testPath = Paths.get(ws + "blob.bin")
       Files.write(testPath, random)
       val logger = new LoggingLogger
-      val worker = new HashWorker(logger, md, Envelope.RAW)
+      val bytesHashed = new LongAdder
+      val worker = new HashWorker(logger, md, Envelope.RAW, bytesHashed)
       val actualHash = worker.hashFile(testPath.toFile)
-
+      bytesHashed.longValue ==== 1024 * 1024
       actualHash ==== expectedHash
     }
   }
@@ -30,9 +32,11 @@ class EnvelopeSpec extends MutableSpec {
         val testPath = Paths.get(ws + "blob.bin")
         Files.write(testPath, bytes)
         val logger = new LoggingLogger
+        val bytesHashed = new LongAdder
         val md = MessageDigest.getInstance("SHA")
-        val worker = new HashWorker(logger, md, Envelope.GIT)
+        val worker = new HashWorker(logger, md, Envelope.GIT, bytesHashed)
         val actualHash = worker.hashFile(testPath.toFile)
+        bytesHashed.longValue ==== 3
         Hex.toHex(actualHash) ==== "48b83b862ebc57bd3f7c34ed47262f4b402935af"
       }
     }
@@ -45,8 +49,10 @@ class EnvelopeSpec extends MutableSpec {
 
         val md = MessageDigest.getInstance("SHA");
         val logger = new LoggingLogger
-        val worker = new HashWorker(logger, md, Envelope.GIT)
+        val bytesHashed = new LongAdder
+        val worker = new HashWorker(logger, md, Envelope.GIT, bytesHashed)
         val actualHash = worker.hashFile(testPath.toFile)
+        bytesHashed.longValue ==== 1024 * 1024
 
         import sys.process._
         val expectedHash = Seq("git", "hash-object", testPath.toString).!!.trim

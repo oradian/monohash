@@ -72,7 +72,7 @@ class WhiteWalker {
             logger.trace("Started worker " + workerId + " ...");
         }
         final MessageDigest digest = MessageDigest.getInstance(algorithm);
-        final HashWorker hasher = new HashWorker(logger, digest, envelope);
+        final HashWorker hasher = new HashWorker(logger, digest, envelope, bytesHashed);
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
@@ -122,7 +122,6 @@ class WhiteWalker {
 
                     // increase counters
                     filesHashed.increment();
-                    bytesHashed.add(file.length());
                 }
             }
 
