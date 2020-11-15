@@ -5,10 +5,10 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 
 import com.oradian.infra.monohash.LoggingLogger.LogMsg
-import com.oradian.infra.monohash.MonoHash.ExitException
 import org.specs2.matcher.MatchResult
+import org.specs2.mutable.Specification
 
-class VerificationSpec extends MutableSpec {
+class VerificationSpec extends Specification {
   private[this] def testNoExport(verification: Verification, exportTest: String => Option[(File, Option[String])]): MatchResult[_] = {
     val logger = new LoggingLogger
     inWorkspace { ws =>
@@ -38,7 +38,7 @@ class VerificationSpec extends MutableSpec {
     }
     "Verification 'require' will explode" >> {
       testNoExport(Verification.REQUIRE, _ => None) must
-        throwAn[IOException]("""\[verification\] is set to 'require', but \[export file\] was not provided""")
+        throwAn[ExitException]("""\[verification\] is set to 'require', but \[export file\] was not provided""")
     }
   }
 
@@ -51,7 +51,7 @@ class VerificationSpec extends MutableSpec {
     }
     "Verification 'require' will explode" >> {
       testNoExport(Verification.REQUIRE, ws => Some((new File(ws, "export.missing"), None))) must
-        throwAn[IOException]("""\[verification\] is set to 'require', but previous \[export file\] was not found: """)
+        throwAn[ExitException]("""\[verification\] is set to 'require', but previous \[export file\] was not found: """)
     }
   }
 
@@ -153,7 +153,7 @@ class VerificationSpec extends MutableSpec {
           LogMsg(Logger.Level.ERROR, "! e1faffb3e614e6c2fba74296962386b7: three-A.txt (was: e1faffb3e614e6c2fba74296962386b6)"),
           LogMsg(Logger.Level.ERROR, ""),
         )
-      } must throwAn[ExitException]("""\[verification\] was set to 'require' and there was a difference in export results, aborting!""")
+      } must throwAn[ExitException]("""\[verification\] was set to 'require', but there was a difference in export results""")
     }
   }
 }

@@ -1,18 +1,18 @@
 package com.oradian.infra.monohash
 
+import java.security.Security
 import java.util.UUID
 
-import com.oradian.infra.monohash.MonoHash.ExitException
-import com.oradian.infra.monohash.impl.PrintStreamLogger
 import org.specs2.execute.Result
 import org.specs2.matcher.MatchResult
+import org.specs2.mutable.Specification
 
-class CmdLineParserSpec extends MutableSpec {
+class CmdLineParserSpec extends Specification {
+  sequential
+
   private[this] def withParser(args: String*)(f: CmdLineParser => MatchResult[_]*): Result = {
-    val parser = new CmdLineParser(
-      args.toArray,
-      (logLevel: Logger.Level) => new PrintStreamLogger(System.err, logLevel),
-    )
+    val logger = new LoggingLogger
+    val parser = new CmdLineParser(args.toArray, _ => logger)
     Result.foreach(f) { expectation =>
       expectation(parser)
     }
@@ -20,13 +20,13 @@ class CmdLineParserSpec extends MutableSpec {
 
   "Empty argument handling" >> {
     "No args provided" >> {
-      withParser()() must throwAn[ExitException]("You did not specify the \\[hash plan file\\]!")
+      withParser()() must throwAn[ExitException]("You did not specify the \\[hash plan file\\]")
     }
     "Hash plan file is empty" >> {
-      withParser("")() must throwAn[ExitException]("Provided \\[hash plan file\\] was an empty string!")
+      withParser("")() must throwAn[ExitException]("Provided \\[hash plan file\\] was an empty string")
     }
     "Export file is empty" >> {
-      withParser("x", "")() must throwAn[ExitException]("Provided \\[export file\\] was an empty string!")
+      withParser("x", "")() must throwAn[ExitException]("Provided \\[export file\\] was an empty string")
     }
   }
 
@@ -175,9 +175,9 @@ class CmdLineParserSpec extends MutableSpec {
         _.hashPlanPath ==== fakePlan,
         _.exportPath ==== null,
       )
-      withParser("-vWaRn", "-a", "MD5", "-e", "raw", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-512/256", "-eGIT", "--", "-aplan", "-vexport")(
+      withParser("-vWaRn", "-a", "MD5", "-e", "raw", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-384", "-eGIT", "--", "-aplan", "-vexport")(
         _.logLevel ==== Logger.Level.ERROR,
-        _.algorithm ==== "SHA-512/256",
+        _.algorithm ==== "SHA-384",
         _.envelope ==== Envelope.GIT,
         _.concurrency ==== 123,
         _.verification ==== Verification.REQUIRE,
@@ -190,5 +190,21 @@ class CmdLineParserSpec extends MutableSpec {
   "Too many arguments" >> {
     withParser(fakePlan, fakeExport, "xyzzy")() must
       throwA[ExitException]("""There are too many arguments provided after \[hash plan file\] and \[export file\], first was: 'xyzzy'""")
+  }
+
+  "No algorithms check" >> {
+    val providers = Security.getProviders()
+    try {
+      for (provider <- providers) {
+        // Can prolly cause some flip-flops in CI tests
+        // Perhaps the test is not worth-it and can remain as a commented out expectation
+        Security.removeProvider(provider.getName)
+      }
+      withParser()() must throwAn[ExitException]("Algorithm 'SHA-1' is not supported. Supported algorithms: <none>")
+    } finally {
+      for (provider <- providers) {
+        Security.addProvider(provider)
+      }
+    }
   }
 }

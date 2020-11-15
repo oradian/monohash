@@ -54,7 +54,7 @@ public class HashPlan {
             final String line = basePathOverrides.get(0);
             final String relBasePath = line.substring(1);
             if (relBasePath.isEmpty()) {
-                throw new IllegalArgumentException("base path override cannot be empty!");
+                throw new IllegalArgumentException("base path override cannot be empty");
             }
             if (!relBasePath.endsWith("/") && logger.isWarnEnabled()) {
                 logger.warn("Relative base path should end with a trailing slash, adding the slash: '" + line + "/'");
@@ -68,7 +68,7 @@ public class HashPlan {
                     .replace('\\', '/')
                     .replaceFirst("/*$", "/");
         } catch (final IOException e) {
-            throw new RuntimeException("Could not resolve canonical path for: " + file, e);
+            throw new RuntimeException("Could not resolve canonical path for [hash plan]'s parent: " + file, e);
         }
     }
 
@@ -78,7 +78,7 @@ public class HashPlan {
             if (line.startsWith("!")) {
                 final String pattern = line.substring(1);
                 if (pattern.isEmpty()) {
-                    throw new IllegalArgumentException("blacklist pattern cannot be empty!");
+                    throw new IllegalArgumentException("blacklist pattern cannot be empty");
                 }
                 final String regex = Arrays.stream(pattern.split("\\*", -1))
                         .map(Pattern::quote)
@@ -90,7 +90,7 @@ public class HashPlan {
 
         if (patterns.isEmpty()) {
             if (logger.isDebugEnabled()) {
-                logger.debug("No blacklist patterns to compile!");
+                logger.debug("No blacklist patterns to compile");
             }
             return null;
         } else {
@@ -171,7 +171,12 @@ public class HashPlan {
     }
 
     static HashPlan apply(final Logger logger, final File plan) throws IOException {
-        final File canoPlan = plan.getCanonicalFile();
+        final File canoPlan;
+        try {
+            canoPlan = plan.getCanonicalFile();
+        } catch (final IOException e) {
+            throw new RuntimeException("Could not resolve canonical path for [hash plan]: " + plan, e);
+        }
         if (canoPlan.isDirectory()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Hash plan was a directory, proceeding with synthetic [hash plan] instead ...");

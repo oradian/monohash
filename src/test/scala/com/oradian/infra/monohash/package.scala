@@ -13,8 +13,6 @@ package object monohash {
   }
   val resources: String = projectRoot + "src/test/resources/"
 
-  type MutableSpec = org.specs2.mutable.Specification
-
   private[this] val workspace: String = projectRoot + "target/workspace/"
   def inWorkspace[T](f: String => T): T = {
     val newWorkspace = workspace + System.currentTimeMillis() + "-" + UUID.randomUUID() + "/"

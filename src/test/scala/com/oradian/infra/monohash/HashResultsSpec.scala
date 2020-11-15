@@ -8,11 +8,12 @@ import java.util.AbstractMap.SimpleEntry
 import java.util.Locale
 
 import org.specs2.matcher.MatchResult
+import org.specs2.mutable.Specification
 
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 
-class HashResultsSpec extends MutableSpec {
+class HashResultsSpec extends Specification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
   private[this] val Algorithm = "SHA-1"
   private[this] val LengthInBytes = MessageDigest.getInstance("SHA-1").getDigestLength
@@ -24,9 +25,7 @@ class HashResultsSpec extends MutableSpec {
       val name = new String(Array.fill(Random.nextInt(100) + 1) {
         Random.nextPrintableChar()
       })
-      val buffer = new Array[Byte](LengthInBytes)
-      Random.nextBytes(buffer)
-      name -> buffer
+      name -> Random.nextBytes(LengthInBytes)
     }.toMap.asJava).entrySet()
   )
 
@@ -125,5 +124,16 @@ Deleted files:
 - 4444444444444444444444444444444444444444: To be deleted
 
 """)
+  }
+
+  "HashResults are iterable" >> {
+    val results = genRandomHashResults()
+    val i = results.iterator()
+    while (i.hasNext) {
+      val entry = i.next()
+      entry.getKey must not be empty
+      entry.getValue must have size LengthInBytes
+    }
+    i.next() must throwA[NoSuchElementException]("Seeking past last entry")
   }
 }

@@ -4,7 +4,9 @@ import java.io.File
 import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
-class HashPlanSpec extends MutableSpec {
+import org.specs2.mutable.Specification
+
+class HashPlanSpec extends Specification {
   private[this] val logger = new LoggingLogger
 
   private[this] def test(plan: String): HashPlan =
@@ -21,7 +23,7 @@ class HashPlanSpec extends MutableSpec {
 
   "Ability to override default basePath" >> {
     test("basePath/00-default").basePath ==== resources + "basePath/00-default/"
-    test("basePath/01-empty") must throwA(new IllegalArgumentException(s"base path override cannot be empty!"))
+    test("basePath/01-empty") must throwA(new IllegalArgumentException(s"base path override cannot be empty"))
     test("basePath/02-override").basePath ==== resources + "basePath/01-empty/"
     test("basePath/03-duplicate").basePath ==== resources + "basePath/02-override/"
     test("basePath/04-multiple") must throwA(new IllegalArgumentException("There is more than one base path override: '@../02-override/', '@../03-duplicate/'"))
@@ -34,7 +36,7 @@ class HashPlanSpec extends MutableSpec {
 
   "Blacklisting support" >> {
     test("blacklist/00-default").blacklist ==== null
-    test("blacklist/01-empty") must throwA(new IllegalArgumentException("blacklist pattern cannot be empty!"))
+    test("blacklist/01-empty") must throwA(new IllegalArgumentException("blacklist pattern cannot be empty"))
     test("blacklist/02-simple").blacklist.pattern ==== "\\Q.monohash\\E"
     test("blacklist/03-wildcards").blacklist.pattern ==== """.*|\Q.\E.*|.*\Q.\E.*"""
   }
@@ -55,5 +57,13 @@ class HashPlanSpec extends MutableSpec {
     hashPlan.basePath ==== resources
     hashPlan.whitelist.isEmpty
     hashPlan.blacklist ==== null
+  }
+
+  "HashPlans must be rooted in reality" >> {
+    HashPlan.apply(logger, new File("\u0000")) must
+      throwAn[RuntimeException]("Could not resolve canonical path for \\[hash plan\\]: \u0000")
+
+    HashPlan.apply(logger, new File("\u0000"), Array.emptyByteArray) must
+      throwAn[RuntimeException]("Could not resolve canonical path for \\[hash plan\\]'s parent: \u0000")
   }
 }

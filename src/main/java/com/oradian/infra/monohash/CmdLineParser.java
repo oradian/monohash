@@ -1,7 +1,6 @@
 package com.oradian.infra.monohash;
 
 import com.oradian.infra.monohash.Logger.Level;
-import com.oradian.infra.monohash.MonoHash.ExitException;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -44,7 +43,7 @@ class CmdLineParser {
         }
     }
 
-    private static ExitException buildExitWithHelp(final String extraMessage) {
+    private static ExitException buildExitWithHelp(final String extraMessage, final int exitCode) {
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw);
 
@@ -62,7 +61,7 @@ class CmdLineParser {
             pw.println();
         }
 
-        return new ExitException(sw.toString(), 1);
+        return new ExitException(sw.toString(), exitCode);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -91,16 +90,16 @@ class CmdLineParser {
                 String value = arg.substring(option.flag.length());
                 if (value.isEmpty()) {
                     if (!i.hasNext()) {
-                        throw buildExitWithHelp("Missing value for " + option.name + ", last argument was an alone '" + option.flag + "'");
+                        throw buildExitWithHelp("Missing value for " + option.name + ", last argument was an alone '" + option.flag + "'", ExitException.INVALID_ARGUMENT_GENERIC);
                     }
 
                     value = i.next();
                     i.remove();
                     if (value.equals(STOP_PARSING_FLAG)) {
-                        throw buildExitWithHelp("Missing value for " + option.name + ", next argument was the stop flag '" + STOP_PARSING_FLAG + "'");
+                        throw buildExitWithHelp("Missing value for " + option.name + ", next argument was the stop flag '" + STOP_PARSING_FLAG + "'", ExitException.INVALID_ARGUMENT_GENERIC);
                     }
                     if (value.isEmpty()) {
-                        throw buildExitWithHelp("Empty value provided for " + option.name);
+                        throw buildExitWithHelp("Empty value provided for " + option.name, ExitException.INVALID_ARGUMENT_GENERIC);
                     }
                 }
 
@@ -135,7 +134,8 @@ class CmdLineParser {
         try {
             return Level.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown log level: '" + value + "', supported log levels are: " + printSupportedLogLevels());
+            throw buildExitWithHelp("Unknown log level: '" + value + "', supported log levels are: " +
+                    printSupportedLogLevels(), ExitException.INVALID_ARGUMENT_LOG_LEVEL);
         }
     }
 
@@ -182,7 +182,7 @@ class CmdLineParser {
             }
         }
         if (sb.length() == 0) {
-            return "";
+            return "<none>";
         }
         sb.setLength(sb.length() - 2);
         return sb.toString();
@@ -198,7 +198,8 @@ class CmdLineParser {
             MessageDigest.getInstance(value);
             return value;
         } catch (final NoSuchAlgorithmException e) {
-            throw buildExitWithHelp("Algorithm '" + value + "' is not supported. Supported algorithms: " + printSupportedAlgorithms(false));
+            throw buildExitWithHelp("Algorithm '" + value + "' is not supported. Supported algorithms: " +
+                    printSupportedAlgorithms(false), ExitException.INVALID_ARGUMENT_ALGORITHM);
         }
     }
 
@@ -225,7 +226,8 @@ class CmdLineParser {
         try {
             return Envelope.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown envelope: '" + value + "', supported envelopes are: " + printSupportedEnvelopes());
+            throw buildExitWithHelp("Unknown envelope: '" + value + "', supported envelopes are: " +
+                    printSupportedEnvelopes(), ExitException.INVALID_ARGUMENT_ENVELOPE);
         }
     }
 
@@ -245,11 +247,11 @@ class CmdLineParser {
         try {
             final int concurrency = Integer.parseInt(value);
             if (concurrency < 1) {
-                throw buildExitWithHelp("Concurrency must be a positive integer, got: '" + value + "'");
+                throw buildExitWithHelp("Concurrency must be a positive integer, got: '" + value + "'", ExitException.INVALID_ARGUMENT_CONCURRENCY);
             }
             return concurrency;
         } catch (final NumberFormatException e) {
-            throw buildExitWithHelp("Invalid concurrency setting: '" + value + "', expecting a positive integer");
+            throw buildExitWithHelp("Invalid concurrency setting: '" + value + "', expecting a positive integer", ExitException.INVALID_ARGUMENT_CONCURRENCY);
         }
     }
 
@@ -276,7 +278,8 @@ class CmdLineParser {
         try {
             return Verification.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown verification: '" + value + "', supported verifications are: " + printSupportedVerifications());
+            throw buildExitWithHelp("Unknown verification: '" + value + "', supported verifications are: " +
+                    printSupportedVerifications(), ExitException.INVALID_ARGUMENT_VERIFICATION);
         }
     }
 
@@ -324,27 +327,27 @@ class CmdLineParser {
         }
 
         if (remainingArgs.isEmpty()) {
-            throw buildExitWithHelp("You did not specify the [hash plan file]!");
+            throw buildExitWithHelp("You did not specify the [hash plan file]", ExitException.HASH_PLAN_FILE_MISSING);
         }
 
         hashPlanPath = remainingArgs.remove(0);
         if (hashPlanPath.isEmpty()) {
-            throw buildExitWithHelp("Provided [hash plan file] was an empty string!");
+            throw buildExitWithHelp("Provided [hash plan file] was an empty string", ExitException.INVALID_ARGUMENT_GENERIC);
         }
         if (remainingArgs.isEmpty()) {
             exportPath = null;
             if (verification == Verification.REQUIRE) {
-                throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided");
+                throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
             }
         } else {
             exportPath = remainingArgs.remove(0);
             if (exportPath.isEmpty()) {
-                throw buildExitWithHelp("Provided [export file] was an empty string!");
+                throw buildExitWithHelp("Provided [export file] was an empty string", ExitException.INVALID_ARGUMENT_GENERIC);
             }
         }
 
         if (!remainingArgs.isEmpty()) {
-            throw buildExitWithHelp("There are too many arguments provided after [hash plan file] and [export file], first was: '" + remainingArgs.get(0) + "'");
+            throw buildExitWithHelp("There are too many arguments provided after [hash plan file] and [export file], first was: '" + remainingArgs.get(0) + "'", ExitException.INVALID_ARGUMENT_TOO_MANY);
         }
     }
 }

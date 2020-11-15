@@ -5,13 +5,15 @@ import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 import java.util.concurrent.atomic.LongAdder
 
+import org.specs2.mutable.Specification
+
 import scala.util.Random
 
-class EnvelopeSpec extends MutableSpec {
+class EnvelopeSpec extends Specification {
   "Envelope 'raw' matches vanilla hashing" >> {
     inWorkspace { ws =>
       val random = Random.nextBytes(1024 * 1024)
-      val md = MessageDigest.getInstance("SHA-512/224");
+      val md = MessageDigest.getInstance("SHA-512");
       val expectedHash = md.digest(random)
 
       val testPath = Paths.get(ws + "blob.bin")

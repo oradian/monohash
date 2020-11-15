@@ -4,10 +4,11 @@ import java.io.File
 import java.security.MessageDigest
 
 import org.specs2.matcher.MatchResult
+import org.specs2.mutable.Specification
 
 import scala.jdk.CollectionConverters._
 
-class WhiteWalkerSpec extends MutableSpec {
+class WhiteWalkerSpec extends Specification {
   private[this] val logger = new LoggingLogger
   private[this] val Algorithm = "SHA-1"
 

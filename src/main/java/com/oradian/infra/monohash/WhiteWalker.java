@@ -76,9 +76,9 @@ class WhiteWalker {
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug(workerId + " is shutting down due to error in another worker!");
-                    return;
+                    logger.debug(workerId + " is shutting down due to error in another worker");
                 }
+                return;
             }
 
             final File file;

@@ -4,22 +4,28 @@ import com.oradian.infra.monohash.impl.PrintStreamLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.text.NumberFormat;
 import java.util.Locale;
 
 public class MonoHash {
     public static void main(final String[] args) {
+        final int exitCode = main(args, System.out, System.err);
+        System.exit(exitCode);
+    }
+
+    static int main(final String[] args, final PrintStream out, final PrintStream err) {
         try {
-            final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(System.err, logLevel));
+            final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(err, logLevel));
             final byte[] totalHash = new MonoHash(parser.logger).run(parser).totalHash();
-            System.out.println(Hex.toHex(totalHash));
-            System.exit(0);
+            out.println(Hex.toHex(totalHash));
+            return ExitException.SUCCESS;
         } catch (final ExitException e) {
-            System.err.println(e.getMessage());
-            System.exit(e.exitCode);
+            err.println(e.getMessage());
+            return e.exitCode;
         } catch (final Throwable t) {
-            t.printStackTrace(System.err);
-            System.exit(999);
+            t.printStackTrace(err);
+            return ExitException.ERROR_GENERIC;
         }
     }
 
@@ -30,17 +36,19 @@ public class MonoHash {
     }
 
     public HashResults run(final CmdLineParser parser) throws Exception {
-        final File hashPlanFile = new File(parser.hashPlanPath);
-        if ((parser.hashPlanPath.endsWith("\\") || parser.hashPlanPath.endsWith("/")) && hashPlanFile.isFile()) {
-            throw new IOException("The [hash plan file] must not end with a slash: " + parser.hashPlanPath);
+        final String hashPlanPath = parser.hashPlanPath.replaceFirst("[\\\\/]+$", "");
+        final File hashPlanFile = new File(hashPlanPath);
+        if (hashPlanFile.isFile() && !hashPlanPath.equals(parser.hashPlanPath)) {
+            throw new ExitException("The [hash plan file] must not end with a slash: " + parser.hashPlanPath, ExitException.HASH_PLAN_FILE_ENDS_WITH_SLASH);
         }
 
         final File exportFile;
         if (parser.exportPath != null) {
-            exportFile = new File(parser.exportPath);
-            if (parser.exportPath.endsWith("\\") || parser.exportPath.endsWith("/")) {
-                throw new IOException("The [export file] must not end with a slash: " + parser.exportPath);
+            final String exportPath = parser.exportPath.replaceFirst("[\\\\/]+$", "");
+            if (!exportPath.equals(parser.exportPath)) {
+                throw new ExitException("The [export file] must not end with a slash: " + parser.exportPath, ExitException.EXPORT_FILE_ENDS_WITH_SLASH);
             }
+            exportFile = new File(parser.exportPath);
         } else {
             exportFile = null;
         }
@@ -51,7 +59,7 @@ public class MonoHash {
     public HashResults run(final File hashPlan, final File export, final String algorithm, final Envelope envelope, final int concurrency, final Verification verification) throws Exception {
         final File planFile = hashPlan.getCanonicalFile();
         if (!planFile.exists()) {
-            throw new IOException("[hash plan file] must point to an existing file or directory, got: " + hashPlan);
+            throw new ExitException("[hash plan file] must point to an existing file or directory, got: " + hashPlan, ExitException.HASH_PLAN_FILE_NOT_FOUND);
         }
         if (logger.isInfoEnabled()) {
             if (planFile.isDirectory()) {
@@ -65,7 +73,7 @@ public class MonoHash {
         final File exportFile;
         if (export == null) {
             if (verification == Verification.REQUIRE) {
-                throw new IOException("[verification] is set to 'require', but [export file] was not provided");
+                throw new ExitException("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED);
             }
             exportFile = null;
             if (logger.isDebugEnabled()) {
@@ -87,9 +95,9 @@ public class MonoHash {
                     }
                 }
             } else if (exportFile.exists()) {
-                throw new IOException("[export file] is not a file: " + exportFile);
+                throw new ExitException("[export file] is not a file: " + exportFile, ExitException.EXPORT_FILE_IS_NOT_A_FILE);
             } else if (verification == Verification.REQUIRE) {
-                throw new IOException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile);
+                throw new ExitException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
             }
             if (logger.isInfoEnabled()) {
                 logger.info("Using [export file]: " + exportFile);
@@ -127,7 +135,7 @@ public class MonoHash {
                             logger.error(diffLine); // logging loop
                         }
                     }
-                    throw new ExitException("[verification] was set to 'require' and there was a difference in export results, aborting!", 2);
+                    throw new ExitException("[verification] was set to 'require', but there was a difference in export results", ExitException.EXPORT_FILE_VERIFICATION_MISMATCH);
                 }
             }
         }
@@ -146,15 +154,5 @@ public class MonoHash {
     private static final NumberFormat thousandsSeparatorFormat = NumberFormat.getIntegerInstance(Locale.ROOT);
     static String nf(final long value) {
         return thousandsSeparatorFormat.format(value);
-    }
-
-    @SuppressWarnings("serial")
-    static class ExitException extends Exception {
-        public final int exitCode;
-
-        ExitException(final String msg, final int exitCode) {
-            super(msg);
-            this.exitCode = exitCode;
-        }
     }
 }

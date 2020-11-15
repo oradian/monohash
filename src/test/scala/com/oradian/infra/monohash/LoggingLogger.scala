@@ -38,11 +38,15 @@ class LoggingLogger extends Logger {
     val count = logData.checks(logLevel).decrementAndGet()
     if (count < 0) {
       val stackTrace = Thread.currentThread().getStackTrace()(3) // should always be three stacks away
-      val sourcePath = projectRoot + "src/main/java/" + stackTrace.getClassName.replace('.', '/') + ".java"
-      val sourceLine = Files.readAllLines(Paths.get(sourcePath), UTF_8).get(stackTrace.getLineNumber - 1).trim
-      assert(sourceLine.startsWith("logger."), "Logging line start mismatch")
-      if (!sourceLine.endsWith("// logging loop")) {
-        sys.error(s"Tried to log at $logLevel log level without checking log level first")
+      if (stackTrace.getFileName.endsWith(".java")) {
+        val sourcePath = projectRoot + "src/main/java/" + stackTrace.getClassName.replace('.', '/') + ".java"
+        val sourceLine = Files.readAllLines(Paths.get(sourcePath), UTF_8).get(stackTrace.getLineNumber - 1).trim
+        assert(sourceLine.startsWith("logger."), "Logging line start mismatch")
+        if (!sourceLine.endsWith("// logging loop")) {
+          sys.error(s"Tried to log at $logLevel log level without checking log level first")
+        }
+      } else {
+        sys.error("Non-safe logging in " + stackTrace.getFileName + ":" + stackTrace.getLineNumber)
       }
     }
     logData.messages += LogMsg(logLevel, msg)
