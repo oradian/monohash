@@ -1,139 +1,93 @@
 package com.oradian.infra.monohash
 
 import java.io.File
-import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
-import java.security.MessageDigest
-import java.util.AbstractMap.SimpleEntry
-import java.util.Locale
 
 import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
 
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class HashResultsSpec extends Specification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
-  private[this] val Algorithm = "SHA-1"
-  private[this] val LengthInBytes = MessageDigest.getInstance("SHA-1").getDigestLength
+  private[this] val algorithm = new Algorithm("SHA-1")
+  private[this] val lengthInBytes = algorithm.lengthInBytes
 
-  private[this] def genRandomHashResults(): HashResults = new HashResults(
+  private[this] def genRandomHashResults(): HashResults = HashResults.apply(
     logger,
-    Algorithm,
+    algorithm,
     new java.util.TreeMap[String, Array[Byte]](Seq.fill(Random.nextInt(100) + 1) {
       val name = new String(Array.fill(Random.nextInt(100) + 1) {
         Random.nextPrintableChar()
       })
-      name -> Random.nextBytes(LengthInBytes)
-    }.toMap.asJava).entrySet()
+      name -> Random.nextBytes(lengthInBytes)
+    }.toMap.asJava).entrySet(),
   )
 
   "Save / load roundtrip test" >> {
     val hashResults = genRandomHashResults()
-    val roundtripFile = File.createTempFile("hashResults-", "." + Algorithm.toLowerCase(Locale.ROOT))
-
+    val roundtripFile = File.createTempFile("hashResults-", "." + algorithm.name)
     hashResults.export(roundtripFile)
-    val hashResultsFromFile = new HashResults(logger, Algorithm, roundtripFile)
+    val lines = Files.readAllBytes(roundtripFile.toPath)
+    val hashResultsFromFile = HashResults.apply(logger, algorithm, lines)
 
     hashResults.size ==== hashResultsFromFile.size
-    val ldf = hashResults.asScala.toSeq.map(kv => (kv.getKey, kv.getValue)).toMap
-    val rdf = hashResultsFromFile.asScala.toSeq.map(kv => (kv.getKey, kv.getValue)).toMap
+    val ldf = hashResults.toMap.asScala
+    val rdf = hashResultsFromFile.toMap.asScala
     val res = ldf forall { case (lf, ld) =>
       rdf(lf) ==== ld
     }
 
     val bytes = Files.readAllBytes(roundtripFile.toPath)
-    val digest = MessageDigest.getInstance(Algorithm)
-    digest.digest(bytes) ==== hashResults.totalHash()
+    val md = algorithm.init(() => 0L)
+    md.digest(bytes) ==== hashResults.hash()
 
     roundtripFile.delete()
     res
   }
 
-  private[this] def test(src: HashResults, dst: HashResults, expected: String): MatchResult[String] =
-    HashResults.diff(src, dst).toString ==== expected.replace("\n", Logger.NL)
+  private[this] def test(actual: HashResults, expected: Seq[(String, Array[Byte])]): MatchResult[_] =
+    actual.toMap.asScala.view.mapValues(_.toSeq).toSeq ====
+    expected.map(k => (k._1, k._2.toSeq))
 
-  private[this] def toHR(files: (String, Char)*): HashResults = {
-    val results = files map { case (path, body) =>
-      path -> Array.fill(LengthInBytes) { Hex.fromHex((body.toString * 2).getBytes(UTF_8), 2).head }
-    }
-    new HashResults(logger, Algorithm, (results map { case (k, v) =>
-      new SimpleEntry[String, Array[Byte]](k, v): java.util.Map.Entry[String, Array[Byte]]
-    }).asJavaCollection)
+  "HashResults.toMap is pre-sorted" >> {
+    val results = genRandomHashResults().toMap
+    val asSeq = results.asScala.view.mapValues(_.toSeq).toSeq
+    val sorted = asSeq.sortBy(_._1)
+    asSeq ==== sorted
   }
 
-  "Diff test" >> {
-    "Files added" >> test(
-      toHR("To stay the same" -> '2'),
-      toHR("To stay the same" -> '2', "To be added" -> 'A'),
-      """Added files:
-+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: To be added
-
-""")
-
-    "files renamed" >> test(
-      toHR("To stay the same" -> '2', "To be renamed" -> 'A', "To also be renamed" -> 'A'),
-      toHR("To stay the same" -> '2', "Renamed 1" -> 'A', "Renamed 2" -> 'A', "Added" -> 'A'),
-      """Added files:
-+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: Renamed 1 (renamed from: To be renamed)
-+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: Renamed 2 (renamed from: To also be renamed)
-+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: Added
-
-""")
-
-    "Files changed" >> test(
-      toHR("To be changed" -> '1', "To also be changed" -> '2', "To stay the same" -> 'E'),
-      toHR("To be changed" -> 'A', "To also be changed" -> 'B', "To stay the same" -> 'E'),
-      """Changed files:
-! aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: To be changed (was: 1111111111111111111111111111111111111111)
-! bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: To also be changed (was: 2222222222222222222222222222222222222222)
-
-""")
-
-    "Files deleted" >> test(
-      toHR("To stay the same" -> '2', "To be deleted" -> 'F'),
-      toHR("To stay the same" -> '2'),
-      """Deleted files:
-- ffffffffffffffffffffffffffffffffffffffff: To be deleted
-
-""")
-
-    "Mixed changes" >> test(
-      toHR(
-        "To be deleted" -> '1',
-        "To be changed" -> '2',
-        "To stay the same" -> '3',
-        "To be deleted" -> '4',
-        "To be renamed" -> '5'
-      ),
-      toHR(
-        "Added" -> 'A',
-        "To be changed" -> 'B',
-        "To stay the same" -> '3',
-        "Renamed" -> '5'
-      ),
-      """Added files:
-+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: Added
-+ 5555555555555555555555555555555555555555: Renamed (renamed from: To be renamed)
-
-Changed files:
-! bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: To be changed (was: 2222222222222222222222222222222222222222)
-
-Deleted files:
-- 4444444444444444444444444444444444444444: To be deleted
-
-""")
+  "HashResults can be empty" >> {
+    val hr = HashResults.apply(logger, algorithm, Array.emptyByteArray)
+    hr.size ==== 0
+    test(hr, Seq.empty)
   }
 
-  "HashResults are iterable" >> {
-    val results = genRandomHashResults()
-    val i = results.iterator()
-    while (i.hasNext) {
-      val entry = i.next()
-      entry.getKey must not be empty
-      entry.getValue must have size LengthInBytes
+  "HashResults corruption handling" >> {
+    "Missing last newline" >> {
+      val hash = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val line = s"${Hex.toHex(hash)} missing".getBytes(UTF_8)
+      val hr = HashResults.apply(logger, algorithm, line)
+      hr.size() ==== 1
+      test(hr, Seq("missing" -> hash))
     }
-    i.next() must throwA[NoSuchElementException]("Seeking past last entry")
+
+    "Garbage instead of line" >> {
+      val line = "*garbage*\n".getBytes(UTF_8)
+      val hr = HashResults.apply(logger, algorithm, line)
+      hr.size() ==== 1
+      hr.toMap must throwA[ExportParsingException]("""Cannot parse export line #0: \*garbage\*""")
+    }
+
+    "Missing separator after hash" >> {
+      val hash1 = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val hash2 = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val lines = s"""${Hex.toHex(hash1)} ok/path
+${Hex.toHex(hash2)}XgarbageX
+""".getBytes(UTF_8)
+      val hr = HashResults.apply(logger, algorithm, lines)
+      hr.size() ==== 2
+      hr.toMap must throwA[ExportParsingException](s"""Could not split hash from path in export line #1: ${Hex.toHex(hash2)}XgarbageX""")
+    }
   }
 }

@@ -2,8 +2,6 @@ package com.oradian.infra.monohash
 
 import java.lang.reflect.Modifier
 
-import org.specs2.mutable.Specification
-
 class ExitExceptionSpec extends Specification {
   "No exit code collisions" >> {
     val exitCodes = for {

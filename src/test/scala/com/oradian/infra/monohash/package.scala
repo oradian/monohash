@@ -1,4 +1,6 @@
 package com.oradian.infra
+
+import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 
@@ -25,4 +27,15 @@ package object monohash {
         .sorted.reverse.map(Files.delete)
     }
   }
+
+  type LoggingLogger = impl.LoggingLogger
+  type LogData = impl.LoggingLogger.LogData
+  val LogData: impl.LoggingLogger.LogData.type = impl.LoggingLogger.LogData
+  type LogMsg = impl.LoggingLogger.LogMsg
+  val LogMsg: impl.LoggingLogger.LogMsg.type = impl.LoggingLogger.LogMsg
+
+  val UTF_8: Charset = java.nio.charset.StandardCharsets.UTF_8
+  val ISO_8859_1: Charset = java.nio.charset.StandardCharsets.ISO_8859_1
+
+  type Specification = org.specs2.mutable.Specification
 }

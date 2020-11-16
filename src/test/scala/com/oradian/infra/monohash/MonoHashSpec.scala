@@ -1,11 +1,10 @@
 package com.oradian.infra.monohash
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
-import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
-import org.specs2.mutable.Specification
+import com.oradian.infra.monohash.impl.PrintStreamLogger
 
 import scala.jdk.StreamConverters._
 
@@ -39,19 +38,19 @@ class MonoHashSpec extends Specification {
       .filter(_.toFile.isFile)
       .toScala(IndexedSeq)
       .map { file =>
-      val path = Paths.get(resources).relativize(file).toString.replace('\\', '/')
-      val hash = {
-        val md = MessageDigest.getInstance("SHA-1")
-        val body = Files.readAllBytes(file)
-        md.digest(body).map("%02x".format(_)).mkString
-      }
-      path -> hash
-    }.sortBy(_._1).map { case (path, hash) => s"$hash $path\n" }.mkString
+        val path = Paths.get(resources).relativize(file).toString.replace('\\', '/')
+        val hash = {
+          val md = MessageDigest.getInstance("SHA-1")
+          val body = Files.readAllBytes(file)
+          md.digest(body).map("%02x".format(_)).mkString
+        }
+        path -> hash
+      }.sortBy(_._1).map { case (path, hash) => s"$hash $path\n" }.mkString
     actualExport ==== expectedExport
 
     val expectedHash = MessageDigest.getInstance("SHA-1")
       .digest(expectedExport.getBytes(UTF_8))
-    actualHash ==== (Hex.toHex(expectedHash) + Logger.NL)
+    actualHash ==== (Hex.toHex(expectedHash) + PrintStreamLogger.NL)
   }
 
   "System test plan without export" >> {
@@ -69,7 +68,7 @@ class MonoHashSpec extends Specification {
     val expectedExport = s"$emptyHash .monohash\n"
     md.reset()
     val expectedHash = md.digest(expectedExport.getBytes(UTF_8))
-    actualHash ==== (Hex.toHex(expectedHash) + Logger.NL)
+    actualHash ==== (Hex.toHex(expectedHash) + PrintStreamLogger.NL)
   }
 
   "Hash plan sanity checks" >> {
@@ -99,7 +98,7 @@ class MonoHashSpec extends Specification {
           new File(trailingSlash.init).mkdir()
           val ((exitCode, out), err) = systemTest("-lwarn", trailingSlash)
           exitCode ==== ExitException.SUCCESS
-          out ==== ("da39a3ee5e6b4b0d3255bfef95601890afd80709" + Logger.NL)
+          out ==== ("da39a3ee5e6b4b0d3255bfef95601890afd80709" + PrintStreamLogger.NL)
           err must beEmpty
         }
       }

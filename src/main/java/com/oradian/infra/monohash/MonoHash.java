@@ -1,12 +1,16 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.diff.Diff;
 import com.oradian.infra.monohash.impl.PrintStreamLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.text.NumberFormat;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Map;
 
 public class MonoHash {
     public static void main(final String[] args) {
@@ -17,14 +21,19 @@ public class MonoHash {
     static int main(final String[] args, final PrintStream out, final PrintStream err) {
         try {
             final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(err, logLevel));
-            final byte[] totalHash = new MonoHash(parser.logger).run(parser).totalHash();
-            out.println(Hex.toHex(totalHash));
+            final byte[] hash = new MonoHash(parser.logger).run(parser).hash();
+            out.println(Hex.toHex(hash));
             return ExitException.SUCCESS;
         } catch (final ExitException e) {
             err.println(e.getMessage());
+            final Throwable cause = e.getCause();
+            if (cause != null) {
+                cause.printStackTrace(err);
+            }
             return e.exitCode;
         } catch (final Throwable t) {
             t.printStackTrace(err);
+            t.printStackTrace(System.out);
             return ExitException.ERROR_GENERIC;
         }
     }
@@ -53,11 +62,16 @@ public class MonoHash {
             exportFile = null;
         }
 
-        return run(hashPlanFile, exportFile, parser.algorithm, parser.envelope, parser.concurrency, parser.verification);
+        return run(hashPlanFile, exportFile, parser.algorithm, parser.concurrency, parser.verification);
     }
 
-    public HashResults run(final File hashPlan, final File export, final String algorithm, final Envelope envelope, final int concurrency, final Verification verification) throws Exception {
-        final File planFile = hashPlan.getCanonicalFile();
+    private File resolvePlanFile(final File hashPlan) throws ExitException {
+        final File planFile;
+        try {
+            planFile = hashPlan.getCanonicalFile();
+        } catch (final IOException e) {
+            throw new ExitException("Could not resolve canonical path of [hash plan file]: " + hashPlan, ExitException.HASH_PLAN_FILE_CANONICAL_ERROR);
+        }
         if (!planFile.exists()) {
             throw new ExitException("[hash plan file] must point to an existing file or directory, got: " + hashPlan, ExitException.HASH_PLAN_FILE_NOT_FOUND);
         }
@@ -68,86 +82,173 @@ public class MonoHash {
                 logger.info("Using [hash plan file]: " + planFile + " ...");
             }
         }
+        return planFile;
+    }
 
-        HashResults previousResults = null;
-        final File exportFile;
+    private File resolveExportFile(final File export, final Verification verification) throws ExitException {
         if (export == null) {
             if (verification == Verification.REQUIRE) {
                 throw new ExitException("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED);
             }
-            exportFile = null;
             if (logger.isDebugEnabled()) {
                 logger.debug("Export file was not defined, skipping export ...");
             }
-        } else {
-            exportFile = export.getCanonicalFile();
-            if (exportFile.isFile()) {
-                if (verification != Verification.OFF) {
-                    try {
-                        previousResults = new HashResults(logger, algorithm, exportFile);
-                    } catch(final IOException e) {
-                        if (verification == Verification.REQUIRE) {
-                            throw e;
-                        }
-                        if (logger.isWarnEnabled()) {
-                            logger.warn("Could not parse the previous [export file]: " + e.getMessage());
-                        }
-                    }
-                }
-            } else if (exportFile.exists()) {
-                throw new ExitException("[export file] is not a file: " + exportFile, ExitException.EXPORT_FILE_IS_NOT_A_FILE);
-            } else if (verification == Verification.REQUIRE) {
-                throw new ExitException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
-            }
+            return null;
+        }
+        try {
+            final File exportFile = export.getCanonicalFile();
             if (logger.isInfoEnabled()) {
                 logger.info("Using [export file]: " + exportFile);
             }
+            return exportFile;
+        } catch (final IOException e) {
+            throw new ExitException("Could not resolve canonical path of [export file]: " + export, ExitException.EXPORT_FILE_CANONICAL_ERROR, e);
         }
+    }
 
-        final long parseStartAt = System.currentTimeMillis();
-        final HashPlan plan = HashPlan.apply(logger, planFile);
-        if (logger.isDebugEnabled()) {
-            logger.debug(String.format("Parsed hash plan in %1.3f sec", (System.currentTimeMillis() - parseStartAt) / 1e3));
+    private HashResults readPreviousExport(final File exportFile, final Algorithm algorithm, final Verification verification) throws ExitException {
+        if (exportFile == null) {
+            return null;
         }
-
-        final long executeStartAt = System.currentTimeMillis();
-        final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, envelope, concurrency);
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec", nf(hashResults.size()), (System.currentTimeMillis() - executeStartAt) / 1e3));
-        }
-
-        if (previousResults != null) {
-            final long diffStartAt = System.currentTimeMillis();
-            final HashResults.Diff diff = HashResults.diff(previousResults, hashResults);
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("Exported hash results to export file in %1.3f sec", (System.currentTimeMillis() - diffStartAt) / 1e3));
+        if (!exportFile.exists()) {
+            if (verification == Verification.REQUIRE) {
+                throw new ExitException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
             }
-            if (!diff.isEmpty()) {
-                if (verification == Verification.WARN) {
-                    if (logger.isWarnEnabled()) {
-                        for (final String diffLine : diff.toLines()) {
-                            logger.warn(diffLine); // logging loop
-                        }
-                    }
-                } else if (verification == Verification.REQUIRE && logger.isErrorEnabled()) {
-                    if (logger.isErrorEnabled()) {
-                        for (final String diffLine : diff.toLines()) {
-                            logger.error(diffLine); // logging loop
-                        }
-                    }
+            return null;
+        }
+        if (!exportFile.isFile()) {
+            throw new ExitException("[export file] is not a file: " + exportFile, ExitException.EXPORT_FILE_IS_NOT_A_FILE);
+        }
+        try {
+            final long startAt = System.nanoTime();
+            final HashResults previousResults = HashResults.apply(logger, algorithm, Files.readAllBytes(exportFile.toPath()));
+            if (logger.isTraceEnabled()) {
+                final long endAt = System.nanoTime();
+                logger.trace(String.format("Read previous [export file] '%s' (in %1.3f ms)", exportFile, (endAt - startAt) / 1e6));
+            }
+            return previousResults;
+        } catch (final IOException e) {
+            if (verification == Verification.REQUIRE) {
+                throw new ExitException("[verification] is set to 'require', but previous [export file] could not be read: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ, e);
+            }
+            if (verification == Verification.WARN) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("Could not read the previous [export file]: " + e.getMessage());
+                }
+            }
+            return null;
+        }
+    }
+
+    private HashPlan parseHashPlan(final File planFile) throws ExitException {
+        final long parseStartAt = System.currentTimeMillis();
+        try {
+            final HashPlan plan = HashPlan.apply(logger, planFile);
+            if (logger.isDebugEnabled()) {
+                final long parseEndAt = System.currentTimeMillis();
+                logger.debug(String.format("Parsed hash plan in %1.3f sec", (parseEndAt - parseStartAt) / 1e3));
+            }
+            return plan;
+        } catch (final IOException e) {
+            throw new ExitException("Error reading [hash plan] file: " + planFile, ExitException.HASH_PLAN_ERROR_READING, e);
+        }
+    }
+
+    private HashResults executeHashPlan(final HashPlan plan, final Algorithm algorithm, final int concurrency) throws ExitException {
+        final long executeStartAt = System.currentTimeMillis();
+        try {
+            final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, concurrency);
+            if (logger.isInfoEnabled()) {
+                final long executeEndAt = System.currentTimeMillis();
+                logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec", nf(hashResults.size()), (executeEndAt - executeStartAt) / 1e3));
+            }
+            return hashResults;
+        } catch (final Exception e) {
+            throw new ExitException("Error executing [hash plan]: " + plan, ExitException.MONOHASH_EXECUTION_ERROR, e);
+        }
+    }
+
+    private void logDiff(final HashResults previousResults, final HashResults newResults, final Verification verification) {
+        final boolean logWarn = verification == Verification.WARN && logger.isWarnEnabled();
+        final boolean logError = verification == Verification.REQUIRE && logger.isErrorEnabled();
+
+        if (logWarn || logError) {
+            String msg = "";
+            try {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Diffing against previous export ...");
+                }
+                final long startAt = System.nanoTime();
+                final Map<String, byte[]> previousMap = previousResults == null
+                        ? Collections.emptyMap()
+                        : previousResults.toMap();
+                final Diff diff = Diff.apply(previousMap, newResults.toMap());
+                if (logger.isDebugEnabled()) {
+                    final long endAt = System.nanoTime();
+                    logger.debug(String.format("Diffed against previous export (in %1.3f ms)", (endAt - startAt) / 1e6));
+                }
+                if (diff.isEmpty()) {
+                    msg = "Running diff against previous [export file] produced no obvious differences, but the files were not identical" +
+                    "\n{{{" + diff + "}}}\n";
+                } else {
+                    msg = diff.toString();
+                }
+            } catch (final ExportParsingException e) {
+                msg = "Could not diff against the previous [export file]: " + e.getMessage();
+            }
+            if (logWarn) {
+                logger.warn(msg); // logging loop
+            } else {
+                logger.error(msg); // logging loop
+            }
+        }
+    }
+
+    private void exportResults(
+            final File exportFile,
+            final HashResults previousResults,
+            final HashResults newResults,
+            final Verification verification) throws ExitException {
+
+        if (exportFile == null) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Skipping export");
+            }
+            return;
+        }
+
+        if (previousResults == null) {
+            // should not happen with REQUIRE as it should have short-circuited
+            logDiff(null, newResults, verification);
+        } else {
+            if (newResults.equals(previousResults)) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Previous hash result was identical, no need to update the [export file]: " + exportFile);
+                }
+                return;
+            } else {
+                logDiff(previousResults, newResults, verification);
+                if (verification == Verification.REQUIRE) {
                     throw new ExitException("[verification] was set to 'require', but there was a difference in export results", ExitException.EXPORT_FILE_VERIFICATION_MISMATCH);
                 }
             }
         }
-
-        final long exportStartAt = System.currentTimeMillis();
-        if (exportFile != null) {
-            hashResults.export(exportFile);
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("Exported hash results to export file in %1.3f sec", (System.currentTimeMillis() - exportStartAt) / 1e3));
-            }
+        try {
+            newResults.export(exportFile);
+        } catch (final IOException e) {
+            throw new ExitException("Error occurred while writing to [export file]: " + exportFile, ExitException.EXPORT_FILE_ERROR_WRITING, e);
         }
+    }
 
+    public HashResults run(final File hashPlan, final File export, final Algorithm algorithm, final int concurrency, final Verification verification) throws ExitException {
+        final File planFile = resolvePlanFile(hashPlan);
+        final File exportFile = resolveExportFile(export, verification);
+        final HashResults previousResults = readPreviousExport(exportFile, algorithm, verification);
+
+        final HashPlan plan = parseHashPlan(planFile);
+        final HashResults hashResults = executeHashPlan(plan, algorithm, concurrency);
+
+        exportResults(exportFile, previousResults, hashResults, verification);
         return hashResults;
     }
 

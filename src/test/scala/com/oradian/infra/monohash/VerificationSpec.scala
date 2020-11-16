@@ -1,56 +1,70 @@
 package com.oradian.infra.monohash
 
-import java.io.{File, IOException}
-import java.nio.charset.StandardCharsets.UTF_8
+import java.io.File
 import java.nio.file.{Files, Paths}
 
-import com.oradian.infra.monohash.LoggingLogger.LogMsg
 import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
+
+import scala.util.Random
 
 class VerificationSpec extends Specification {
-  private[this] def testNoExport(verification: Verification, exportTest: String => Option[(File, Option[String])]): MatchResult[_] = {
-    val logger = new LoggingLogger
-    inWorkspace { ws =>
-      Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
-      val exportTodo = exportTest(ws)
-      val exportFile = exportTodo.map(_._1).orNull
-      try {
-        val hashResults = new MonoHash(logger).run(new File(ws), exportFile, "MD5", Envelope.RAW, 2, verification)
-        Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
-      } finally {
-        exportTodo.flatMap(_._2) match {
-          case Some(expected) =>
-            Files.readAllBytes(exportFile.toPath) ==== expected.getBytes(UTF_8)
-          case _ =>
-            (exportFile == null || !exportFile.exists()) ==== true
+  "When export file is not provided" >> {
+    def testNoExportProvided(verification: Verification): MatchResult[_] = {
+      val logger = new LoggingLogger
+      inWorkspace { ws =>
+        Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
+        val algorithm = new Algorithm("MD5")
+        try {
+          val hashResults = new MonoHash(logger).run(new File(ws), null, algorithm, 2, verification)
+          Hex.toHex(hashResults.hash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
+        } finally {
+          // check logger for no warnings and errors even if MonoHash explodes above
+          logger.messages(Logger.Level.WARN) ==== Nil
         }
-        // check logger for no warnings and errors even if MonoHash explodes above
-        logger.messages(Logger.Level.WARN) ==== Nil
       }
     }
-  }
 
-  "When export file is not provided" >> {
     "Verification 'off' & 'warn' will work" >> {
-      testNoExport(Verification.OFF, _ => None)
-      testNoExport(Verification.WARN, _ => None)
+      testNoExportProvided(Verification.OFF)
+      testNoExportProvided(Verification.WARN)
     }
     "Verification 'require' will explode" >> {
-      testNoExport(Verification.REQUIRE, _ => None) must
+      testNoExportProvided(Verification.REQUIRE) must
         throwAn[ExitException]("""\[verification\] is set to 'require', but \[export file\] was not provided""")
     }
   }
 
   "When export file is provided, but missing" >> {
-    val expectedExport = "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n"
+    def testExportProvidedButMissing(verification: Verification)
+                                    (loggerCheck: LoggingLogger => MatchResult[_]): MatchResult[_] = {
+      val logger = new LoggingLogger
+      inWorkspace { ws =>
+        Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
+        val missingExport = new File(ws + "export.missing")
+        val algorithm = new Algorithm("MD5")
+        val hashResults = new MonoHash(logger).run(new File(ws), missingExport, algorithm, 2, verification)
+        Hex.toHex(hashResults.hash()) ==== "33ce171b266744dfce9c5d0e66635c5d" and
+          loggerCheck(logger) and
+          Files.readAllBytes(missingExport.toPath) ==== "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n".getBytes(UTF_8)
+      }
+    }
 
-    "Verification 'off' & 'warn' will work" >> {
-      testNoExport(Verification.OFF, ws => Some((new File(ws, "export.missing"), Some(expectedExport))))
-      testNoExport(Verification.WARN, ws => Some((new File(ws, "export.missing"), Some(expectedExport))))
+    "Verification 'off' produces no warnings" >> {
+      testExportProvidedButMissing(Verification.OFF)(_.messages(Logger.Level.WARN) ==== Nil)
+    }
+    "Verification 'warn' produces additional warnings" >> {
+      testExportProvidedButMissing(Verification.WARN) { logger =>
+        logger.messages(Logger.Level.ERROR) ==== Nil
+        logger.messages(Logger.Level.WARN) ==== Seq(
+          LogMsg(Logger.Level.WARN, """Added files:
++ e1faffb3e614e6c2fba74296962386b7 three-A.txt
+
+""")
+        )
+      }
     }
     "Verification 'require' will explode" >> {
-      testNoExport(Verification.REQUIRE, ws => Some((new File(ws, "export.missing"), None))) must
+      testExportProvidedButMissing(Verification.REQUIRE) { _ => ??? } must
         throwAn[ExitException]("""\[verification\] is set to 'require', but previous \[export file\] was not found: """)
     }
   }
@@ -63,11 +77,11 @@ class VerificationSpec extends Specification {
       inWorkspace { output =>
         val exportPath = Paths.get(output + "monohash.export")
         Files.write(exportPath, previousExport.getBytes(UTF_8))
+        val algorithm = new Algorithm("MD5")
         try {
-          val hashResults = new MonoHash(logger).run(new File(source), exportPath.toFile, "MD5", Envelope.RAW, 2, verification)
-          Hex.toHex(hashResults.totalHash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
+          val hashResults = new MonoHash(logger).run(new File(source), exportPath.toFile, algorithm, 2, verification)
+          Hex.toHex(hashResults.hash()) ==== "33ce171b266744dfce9c5d0e66635c5d"
         } finally {
-          // check export and logger even if MonoHash explodes above
           new String(Files.readAllBytes(exportPath), UTF_8) ==== expectedExport and loggerCheck(logger)
         }
       }
@@ -79,17 +93,19 @@ class VerificationSpec extends Specification {
 
     "Verification 'off' doesn't read the export file (no warnings)" >> {
       testExport(Verification.OFF, "*garbage*", expectedExport) { logger =>
-        logger.messages().exists(_.msg contains "Parsing [export file]: ") ==== false
+        logger.messages().exists(_.msg == "Diffing against previous export ...") ==== false
+        logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
         logger.messages(Logger.Level.WARN) ==== Nil
       }
     }
     "Verification 'warn' complains about the export file, but overwrites it" >> {
       "When provided garbage" >> {
         testExport(Verification.WARN, "*garbage*", expectedExport) { logger =>
-          logger.messages().exists(_.msg contains "Parsing [export file]: ") ==== true
-          logger.messages().exists(_.msg startsWith "Parsed [export file]: ") ==== false
+          logger.messages().exists(_.msg == "Diffing against previous export ...") ==== true
+          logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
           logger.messages(Logger.Level.WARN) ==== Seq(
-            LogMsg(Logger.Level.WARN, "Could not parse the previous [export file]: Could not split hash from path in line: *garbage*")
+            LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
+              "Cannot parse export line #0: *garbage*")
           )
         }
       }
@@ -97,28 +113,30 @@ class VerificationSpec extends Specification {
         val previousExport = "1234e1faffb3e614e6c2fba74296962386b7 three-A.txt\n"
         testExport(Verification.WARN, previousExport, expectedExport) { logger =>
           logger.messages(Logger.Level.WARN) ==== Seq(
-            LogMsg(Logger.Level.WARN, "Could not parse the previous [export file]: " +
-              "Expected hash length of 32, but found a hash with 36 characters instead: '1234e1faffb3e614e6c2fba74296962386b7 three-A.txt'")
+            LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
+              "Could not split hash from path in export line #0: " + previousExport.init)
           )
         }
       }
       "When provided weird stuff instead of hex" >> {
-        val previousExport = "xxfaffb3e614e6c2fba74296962386b7 three-A.txt\n"
+        val previousExport = expectedExport.replace('7', 'q')
         testExport(Verification.WARN, previousExport, expectedExport) { logger =>
           logger.messages(Logger.Level.WARN) ==== Seq(
-            LogMsg(Logger.Level.WARN, "Could not parse the previous [export file]: " +
-              "Expected hash of 32 hexadecimal characters at the beginning of line, but got: 'xxfaffb3e614e6c2fba74296962386b7 three-A.txt'")
+            LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
+              "Cannot parse export line #0: " + previousExport.init)
           )
         }
       }
     }
     "Verification 'require' explodes without touching the export file" >> {
       testExport(Verification.REQUIRE, "*garbage*", "*garbage*") { logger =>
-        logger.messages().exists(_.msg contains "Parsing [export file]: ") ==== true
-        logger.messages().exists(_.msg startsWith "Parsed [export file]: ") ==== false
-        // don't log warnings or errors, just explode
-        logger.messages(Logger.Level.WARN) ==== Nil
-      } must throwAn[IOException]("""Could not split hash from path in line: \*garbage\*""")
+        logger.messages().exists(_.msg == "Diffing against previous export ...") ==== true
+        logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
+        logger.messages(Logger.Level.WARN) ==== Seq(
+          LogMsg(Logger.Level.ERROR, "Could not diff against the previous [export file]: " +
+            "Cannot parse export line #0: *garbage*")
+        )
+      } must throwAn[ExitException]("""\[verification\] was set to 'require', but there was a difference in export results""")
     }
   }
 
@@ -126,34 +144,77 @@ class VerificationSpec extends Specification {
     val previousExport = "e1faffb3e614e6c2fba74296962386b6 three-A.txt\n"
     val expectedExport = "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n"
 
-    "Verification 'off' doesn't read the export file" >> {
+    "Verification 'off' doesn't diff the export file" >> {
       testExport(Verification.OFF, previousExport, expectedExport) { logger =>
-        logger.messages().exists(_.msg startsWith "Parsing [export file]: ") ==== false
-        logger.messages().exists(_.msg startsWith "Parsed [export file]: ") ==== false
+        logger.messages().exists(_.msg startsWith "Read previous [export file]") ==== true
+        logger.messages().exists(_.msg == "Diffing against previous export ...") ==== false
+        logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
+        logger.messages().exists(_.msg startsWith "Wrote to [export file]") ==== true
         logger.messages(Logger.Level.WARN) ==== Nil
       }
     }
+
     "Verification 'warn' reads the export file and overwrites it" >> {
       testExport(Verification.WARN, previousExport, expectedExport) { logger =>
-        logger.messages().exists(_.msg startsWith "Parsing [export file]: ") ==== true
-        logger.messages().exists(_.msg startsWith "Parsed [export file]: ") ==== true
+        logger.messages().exists(_.msg startsWith "Read previous [export file]") ==== true
+        logger.messages().exists(_.msg == "Diffing against previous export ...") ==== true
+        logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== true
+        logger.messages().exists(_.msg startsWith "Wrote to [export file]") ==== true
         logger.messages(Logger.Level.WARN) ==== Seq(
-          LogMsg(Logger.Level.WARN, "Changed files:"),
-          LogMsg(Logger.Level.WARN, "! e1faffb3e614e6c2fba74296962386b7: three-A.txt (was: e1faffb3e614e6c2fba74296962386b6)"),
-          LogMsg(Logger.Level.WARN, ""),
+          LogMsg(Logger.Level.WARN, """Modified files:
+! e1faffb3e614e6c2fba74296962386b7 three-A.txt (previously: e1faffb3e614e6c2fba74296962386b6)
+
+""")
         )
       }
     }
+
     "Verification 'require' reads the export file, but crashes without overwriting it" >> {
       testExport(Verification.REQUIRE, previousExport, previousExport) { logger =>
-        logger.messages().exists(_.msg startsWith "Parsing [export file]: ") ==== true
-        logger.messages().exists(_.msg startsWith "Parsed [export file]: ") ==== true
+        logger.messages().exists(_.msg startsWith "Read previous [export file]") ==== true
+        logger.messages().exists(_.msg == "Diffing against previous export ...") ==== true
+        logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== true
+        logger.messages().exists(_.msg startsWith "Wrote to [export file]") ==== false
         logger.messages(Logger.Level.WARN) ==== Seq(
-          LogMsg(Logger.Level.ERROR, "Changed files:"),
-          LogMsg(Logger.Level.ERROR, "! e1faffb3e614e6c2fba74296962386b7: three-A.txt (was: e1faffb3e614e6c2fba74296962386b6)"),
-          LogMsg(Logger.Level.ERROR, ""),
+          LogMsg(Logger.Level.ERROR, """Modified files:
+! e1faffb3e614e6c2fba74296962386b7 three-A.txt (previously: e1faffb3e614e6c2fba74296962386b6)
+
+""")
         )
       } must throwAn[ExitException]("""\[verification\] was set to 'require', but there was a difference in export results""")
+    }
+  }
+
+  "Verifications do not overwrite the file on success" >> {
+    inWorkspace { source =>
+      Files.write(Paths.get(source + "random.bin"), Random.nextBytes(1024 * 1024))
+      inWorkspace { output =>
+        locally {
+          val logger = new LoggingLogger
+          val parser = new CmdLineParser(Array("-voff", source, output + "export"), _ => logger)
+          new MonoHash(logger).run(parser)
+        }
+
+        val export = new File(output + "export")
+        val momentInPast = System.currentTimeMillis() - 60 * 60 * 1000
+
+        for (verification <- Verification.values.toSeq) yield {
+          export.setLastModified(momentInPast)
+
+          val logger = new LoggingLogger
+          val parser = new CmdLineParser(Array("-v", verification.name, source, output + "export"), _ => logger)
+          new MonoHash(logger).run(parser)
+
+          val messages = logger.messages()
+          messages.exists(_.msg startsWith "Read previous [export file]") ==== true
+          messages.exists(_.msg == "Diffing against previous export ...") ==== false
+          messages.exists(_.msg startsWith "Diffed against previous export") ==== false
+          messages.exists(_.msg startsWith "Wrote to [export file]") ==== false
+          messages.exists(_.msg.contains("Previous hash result was identical, no need to update the [export file]")) ==== true
+
+          export.lastModified() ==== momentInPast
+        }
+      }
     }
   }
 }

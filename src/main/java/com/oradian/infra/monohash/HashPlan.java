@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,9 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static com.oradian.infra.monohash.Logger.NL;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class HashPlan {
     public final String basePath;
@@ -95,7 +93,8 @@ public class HashPlan {
             return null;
         } else {
             if (logger.isDebugEnabled()) {
-                logger.debug("Compiling blacklist patterns:" + Logger.NL + String.join(Logger.NL, patterns));
+                logger.debug("Compiling blacklist patterns:\n" +
+                        String.join("\n", patterns));
             }
             return Pattern.compile(String.join("|", patterns));
         }
@@ -149,7 +148,8 @@ public class HashPlan {
         final List<String> lines = Arrays.stream(plan.split("[ \t]*([\r\n]+|$)"))
                 .filter(line -> !line.isEmpty()).collect(Collectors.toList());
         if (logger.isTraceEnabled()) {
-            logger.trace("Read hash plan:" + NL + String.join(NL, lines));
+            logger.trace("Read hash plan:\n" +
+                    String.join("\n", lines));
         }
 
         final String basePath = resolveBasePath(logger, planParent, lines);
@@ -165,7 +165,7 @@ public class HashPlan {
     static HashPlan apply(final Logger logger, final File planParent, final byte[] plan) throws CharacterCodingException {
         // Use CharsetDecoder in order to explode on Character decoding issues
         // Vanilla String / Charset functions would silently skip errors and replace them with '�'
-        final CharsetDecoder utf8 = UTF_8.newDecoder();
+        final CharsetDecoder utf8 = StandardCharsets.UTF_8.newDecoder();
         final String planString = utf8.decode(ByteBuffer.wrap(plan)).toString();
         return apply(logger, planParent, planString);
     }

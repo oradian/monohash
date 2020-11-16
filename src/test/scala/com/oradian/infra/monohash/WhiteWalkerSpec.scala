@@ -1,24 +1,22 @@
 package com.oradian.infra.monohash
 
 import java.io.File
-import java.security.MessageDigest
 
 import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
 
 import scala.jdk.CollectionConverters._
 
 class WhiteWalkerSpec extends Specification {
   private[this] val logger = new LoggingLogger
-  private[this] val Algorithm = "SHA-1"
+  private[this] val algorithm = new Algorithm("SHA-1")
 
   private[this] def test(path: String)(expectedFiles: String*): MatchResult[Seq[(String, Seq[Byte])]] = {
     val planPath = new File(resources + s"whiteWalker/$path/.monohash")
     val hashPlan = HashPlan.apply(logger, planPath)
-    val actualHashResults = WhiteWalker.apply(logger, hashPlan, Algorithm, Envelope.RAW, 1).asScala.toSeq.map(kv => (kv.getKey, kv.getValue.toSeq))
+    val actualHashResults = WhiteWalker.apply(logger, hashPlan, algorithm, 1).toMap.asScala.view.mapValues(_.toSeq).toSeq
 
     val expectedHashResults = expectedFiles.toSeq map { file =>
-      val nameHash = MessageDigest.getInstance(Algorithm)
+      val nameHash = algorithm.init(() => 0L)
         .digest(file.replaceFirst(".*/", "").getBytes("UTF-8"))
       (file, nameHash.toSeq)
     }

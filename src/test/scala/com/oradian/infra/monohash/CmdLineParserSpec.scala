@@ -5,7 +5,6 @@ import java.util.UUID
 
 import org.specs2.execute.Result
 import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
 
 class CmdLineParserSpec extends Specification {
   sequential
@@ -48,8 +47,7 @@ class CmdLineParserSpec extends Specification {
   "Default options" >> {
     withParser(fakePlan)(
       _.logLevel ==== Logger.Level.INFO,
-      _.algorithm ==== "SHA-1",
-      _.envelope ==== Envelope.RAW,
+      _.algorithm.name ==== "SHA-1",
       _.concurrency must be > 0,
       _.verification ==== Verification.OFF,
       _.hashPlanPath ==== fakePlan,
@@ -84,36 +82,16 @@ class CmdLineParserSpec extends Specification {
       withParser("-a", "--")() must throwAn[ExitException]("Missing value for algorithm, next argument was the stop flag '--'")
       withParser("-a", fakePlan)() must throwAn[ExitException](s"Algorithm '$fakePlan' is not supported. Supported algorithms:")
       withParser("-axxx", fakePlan)() must throwAn[ExitException]("Algorithm 'xxx' is not supported. Supported algorithms:")
-      withParser("-a", "SHA-256", fakePlan)(
-        _.algorithm ==== "SHA-256",
+      withParser("-a", "gIt", fakePlan)(
+        _.algorithm.name ==== "Git",
         _.exportPath ==== null,
       )
       withParser("-aSHA-256", "--", fakePlan)(
-        _.algorithm ==== "SHA-256",
+        _.algorithm.name ==== "SHA-256",
         _.exportPath ==== null,
       )
       withParser("-a", "SHA-256", "-a", "SHA-512", fakePlan)(
-        _.algorithm ==== "SHA-512",
-        _.exportPath ==== null,
-      )
-    }
-
-    "Envelope parsing" >> {
-      withParser("-e")() must throwAn[ExitException]("Missing value for envelope, last argument was an alone '-e'")
-      withParser("-e", "")() must throwAn[ExitException]("Empty value provided for envelope")
-      withParser("-e", "--")() must throwAn[ExitException]("Missing value for envelope, next argument was the stop flag '--'")
-      withParser("-e", fakePlan)() must throwAn[ExitException](s"Unknown envelope: '$fakePlan', supported envelopes are: raw, git")
-      withParser("-exxx", fakePlan)() must throwAn[ExitException]("Unknown envelope: 'xxx', supported envelopes are: raw, git")
-      withParser("-e", "git", fakePlan)(
-        _.envelope ==== Envelope.GIT,
-        _.exportPath ==== null,
-      )
-      withParser("-eGiT", "--", fakePlan)(
-        _.envelope ==== Envelope.GIT,
-        _.exportPath ==== null,
-      )
-      withParser("-e", "git", "-e", "raw", fakePlan)(
-        _.envelope ==== Envelope.RAW,
+        _.algorithm.name ==== "SHA-512",
         _.exportPath ==== null,
       )
     }
@@ -166,19 +144,17 @@ class CmdLineParserSpec extends Specification {
     }
 
     "Complex additional options parsing with overrides" >> {
-      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-e", "git", "-v", "warn", fakePlan)(
+      withParser("-l", "off", "-a", "SHA-256", "-c", "2", "-aGIT", "-v", "warn", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
-        _.algorithm ==== "SHA-256",
-        _.envelope ==== Envelope.GIT,
+        _.algorithm.name ==== "Git",
         _.concurrency ==== 2,
         _.verification ==== Verification.WARN,
         _.hashPlanPath ==== fakePlan,
         _.exportPath ==== null,
       )
-      withParser("-vWaRn", "-a", "MD5", "-e", "raw", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-384", "-eGIT", "--", "-aplan", "-vexport")(
+      withParser("-vWaRn", "-a", "MD5", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-384", "--", "-aplan", "-vexport")(
         _.logLevel ==== Logger.Level.ERROR,
-        _.algorithm ==== "SHA-384",
-        _.envelope ==== Envelope.GIT,
+        _.algorithm.name ==== "SHA-384",
         _.concurrency ==== 123,
         _.verification ==== Verification.REQUIRE,
         _.hashPlanPath ==== "-aplan",
@@ -196,7 +172,8 @@ class CmdLineParserSpec extends Specification {
     val providers = Security.getProviders()
     try {
       for (provider <- providers) {
-        // Can prolly cause some flip-flops in CI tests
+        // Can prolly cause some flip-flops in CI tests.
+        // Using `sequential` so that this is the last test in the suite.
         // Perhaps the test is not worth-it and can remain as a commented out expectation
         Security.removeProvider(provider.getName)
       }

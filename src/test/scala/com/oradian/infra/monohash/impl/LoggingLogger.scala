@@ -1,10 +1,8 @@
 package com.oradian.infra.monohash
+package impl
 
-import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicLong
-
-import com.oradian.infra.monohash.LoggingLogger._
 
 import scala.collection.mutable
 

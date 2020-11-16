@@ -2,7 +2,6 @@ package com.oradian.infra.monohash;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,12 +12,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.regex.Pattern;
 
-import static com.oradian.infra.monohash.MonoHash.nf;
-
 class WhiteWalker {
     private final Logger logger;
-    private final String algorithm;
-    private final Envelope envelope;
+    private final Algorithm algorithm;
     private final HashPlan hashPlan;
     private final Queue<File> workQueue;
 
@@ -34,15 +30,13 @@ class WhiteWalker {
 
     private WhiteWalker(
             final Logger logger,
-            final String algorithm,
-            final Envelope envelope,
+            final Algorithm algorithm,
             final HashPlan hashPlan,
             final Queue<File> workQueue,
             final Semaphore workersFinished,
             final AtomicReference<Exception> workerError) {
         this.logger = logger;
         this.algorithm = algorithm;
-        this.envelope = envelope;
         this.hashPlan = hashPlan;
         this.workQueue = workQueue;
 
@@ -71,8 +65,7 @@ class WhiteWalker {
         if (logger.isTraceEnabled()) {
             logger.trace("Started worker " + workerId + " ...");
         }
-        final MessageDigest digest = MessageDigest.getInstance(algorithm);
-        final HashWorker hasher = new HashWorker(logger, digest, envelope, bytesHashed);
+        final HashWorker hasher = new HashWorker(logger, algorithm, bytesHashed);
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
@@ -158,10 +151,10 @@ class WhiteWalker {
                         final String errorNotice = workerError.get() == null ? "" : " [stopping early due to errors]";
                         logger.info(String.format(
                                 "Hashed %s files with a total of %s bytes in %1.3f sec (average speed: %s files/sec, %1.1f MB/sec)%s",
-                                nf(filesCount),
-                                nf(sizeCount),
+                                MonoHash.nf(filesCount),
+                                MonoHash.nf(sizeCount),
                                 seconds,
-                                nf(filesSpeed),
+                                MonoHash.nf(filesSpeed),
                                 sizeSpeed,
                                 errorNotice));
                     }
@@ -204,7 +197,7 @@ class WhiteWalker {
         return path.substring(basePath.length());
     }
 
-    public static HashResults apply(final Logger logger, final HashPlan hashPlan, final String algorithm, final Envelope envelope, final int concurrency) throws Exception {
+    public static HashResults apply(final Logger logger, final HashPlan hashPlan, final Algorithm algorithm, final int concurrency) throws Exception {
         final Queue<File> workQueue = new ArrayDeque<>();
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
@@ -218,7 +211,7 @@ class WhiteWalker {
 
         final Semaphore workersFinished = new Semaphore(1 - concurrency);
         final AtomicReference<Exception> workerError = new AtomicReference<>();
-        final WhiteWalker ww = new WhiteWalker(logger, algorithm, envelope, hashPlan, workQueue, workersFinished, workerError);
+        final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError);
 
         for (int i = 0; i < workers.length; i++) {
             final String workerId = "Worker #" + (i + 1);
@@ -263,6 +256,7 @@ class WhiteWalker {
                 sortedDigests.put(pathHashes.getKey(), hash);
             }
         }
-        return new HashResults(logger, algorithm, sortedDigests.entrySet());
+
+        return HashResults.apply(logger, algorithm, sortedDigests.entrySet());
     }
 }

@@ -38,7 +38,7 @@ OpenJDK 64-Bit Server VM (AdoptOpenJDK)(build 25.272-b10, mixed mode)
 [info] Compiling 12 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 1 s, completed Nov 16, 2020 1:19:37 AM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.6.0.jar ~/linux-5.9
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.7.0.jar ~/linux-5.9
 [info] Using [hash plan directory]: /home/melezov/linux-5.9 ...
 [info] Hashed 74,094 files with a total of 980,846,931 bytes in 0.764 sec (average speed: 96,981 files/sec, 1224.4 MB/sec)
 [info] Executed hash plan by hashing 74,094 files in 0.874 sec
@@ -142,25 +142,25 @@ Maven:
 <dependency>
   <groupId>com.oradian.infra</groupId>
   <artifactId>monohash</artifactId>
-  <version>0.6.0</version>
+  <version>0.7.0</version>
 </dependency>
 ```
 
 Ivy:
 ```
-<dependency org="com.oradian.infra" name="monohash" rev="0.6.0"/>
+<dependency org="com.oradian.infra" name="monohash" rev="0.7.0"/>
 ```
 
 SBT:
 ```
-libraryDependencies += "com.oradian.infra" % "monohash" % "0.6.0"
+libraryDependencies += "com.oradian.infra" % "monohash" % "0.7.0"
 ```
 
 
 ### Command-line usage:
 
 If you don't care about programmatic (library) access, you can simply
-[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.6.0/monohash-0.6.0.jar)
+[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.7.0/monohash-0.7.0.jar)
 and use it on the command line.
 
 Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:
@@ -171,7 +171,6 @@ Usage: java -jar monohash.jar [hash plan file] [export file (optional)]
 Additional options:
   -l <log level> (default: info, allowed values: off, error, warn, info, debug, trace)
   -a <algorithm> (default: SHA-1, some allowed values: MD2, MD5, SHA-1 (aliases: SHA, SHA1), SHA-224 (aliases: SHA224), SHA-256 (aliases: SHA256), SHA-384 (aliases: SHA384), SHA-512 (aliases: SHA512), SHA-512/224 (aliases: SHA512/224), SHA-512/256 (aliases: SHA512/256), SHA3-224, SHA3-256, SHA3-384, SHA3-512)
-  -e <envelope> (default: raw, allowed values: raw, git)
   -c <concurrency> (default: 8 - taken from number of CPUs, unless specified here)
   -v <verification> (default: off, allowed values: off, warn, require)
   -- stops processing arguments to allow for filenames which may conflict with options above
@@ -219,13 +218,10 @@ When using MonoHash programmatically, you can bridge logging into your favourite
 algorithms such as `MD5`, or heavier stuff such as `SHA3-512`. Probably overkill, but the choice is yours.  
 The supported algorithms are gathered by querying registered security providers, i.e. they will depend on the JRE
 version that's running MonoHash and if you have external providers such as
-[Bouncy Castle](https://www.bouncycastle.org/).
-
-- `-e <envelope>` allows you to use a specific flavour of hashing. MonoHash currently supports `raw` and `git`.
-  - `raw` will provide what you would expect out of the box - a vanilla hash of the file's contents.
-  - `git` allows you to use hashing compatible with
-  [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it uses the `"blob ${length}\0"`
-  prefix.
+[Bouncy Castle](https://www.bouncycastle.org/).  
+  An additional synthetic algorithm `Git` is made available by MonoHash. It depends on `SHA-1` and allows you to use
+  hashing compatible with [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it uses
+  the `"blob ${length}\0"` prefix and then proceeds with appending the rest of the binary file.
 
 - `-c <concurrency>` will by default query the number of available processors, and can be overridden with a positive
 integer. The work is both IO (reading) and CPU bound, depending on the digest algorithm used.

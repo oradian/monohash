@@ -4,8 +4,6 @@ import java.io.File
 import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
-import org.specs2.mutable.Specification
-
 class HashPlanSpec extends Specification {
   private[this] val logger = new LoggingLogger
 
@@ -55,7 +53,7 @@ class HashPlanSpec extends Specification {
   "Process directory as empty hash plan" >> {
     val hashPlan = HashPlan.apply(logger, new File(resources))
     hashPlan.basePath ==== resources
-    hashPlan.whitelist.isEmpty
+    hashPlan.whitelist ==== JArrays.asList(resources)
     hashPlan.blacklist ==== null
   }
 

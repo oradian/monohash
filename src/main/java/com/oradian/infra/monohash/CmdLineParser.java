@@ -4,7 +4,6 @@ import com.oradian.infra.monohash.Logger.Level;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
@@ -13,15 +12,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.oradian.infra.monohash.Logger.NL;
-
 class CmdLineParser {
     private static final String STOP_PARSING_FLAG = "--";
 
     private enum Option {
         LOG_LEVEL   ("-l", "log level",    "info", () -> ", allowed values: " + printSupportedLogLevels()),
         ALGORITHM   ("-a", "algorithm",    "SHA-1", () -> ", some allowed values: " + printSupportedAlgorithms(true)),
-        ENVELOPE    ("-e", "envelope",     "raw", () -> ", allowed values: " + printSupportedEnvelopes()),
         CONCURRENCY ("-c", "concurrency",  String.valueOf(getCurrentDefaultConcurrency()), () -> " - taken from number of CPUs, unless specified here"),
         VERIFICATION("-v", "verification", "off", () -> ", allowed values: " + printSupportedVerifications()),
         ;
@@ -31,14 +27,19 @@ class CmdLineParser {
         final String defaultValue;
         final Supplier<String> description;
 
-        Option(final String flag, final String name, final String defaultValue, final Supplier<String> description) {
+        Option(
+                final String flag,
+                final String name,
+                final String defaultValue,
+                final Supplier<String> description) {
             this.flag = flag;
             this.name = name;
             this.defaultValue = defaultValue;
             this.description = description;
         }
 
-        @Override public String toString() {
+        @Override
+        public String toString() {
             return "  " + flag + " <" + name + "> (default: " + defaultValue + description.get() + ")";
         }
     }
@@ -50,7 +51,7 @@ class CmdLineParser {
         pw.println("Usage: java -jar monohash.jar [hash plan file] [export file (optional)]");
         pw.println();
         pw.println("Additional options:");
-        for (final Option option: Option.values()) {
+        for (final Option option : Option.values()) {
             pw.println(option.toString());
         }
         pw.println("  " + STOP_PARSING_FLAG + " stops processing arguments to allow for filenames which may conflict with options above");
@@ -67,8 +68,7 @@ class CmdLineParser {
     // -----------------------------------------------------------------------------------------
 
     final Level logLevel;
-    final String algorithm;
-    final Envelope envelope;
+    final Algorithm algorithm;
     final int concurrency;
     final Verification verification;
 
@@ -79,7 +79,7 @@ class CmdLineParser {
     // -----------------------------------------------------------------------------------------
 
     private static String seekOption(final List<String> args, final Option option) throws ExitException {
-        for (final Iterator<String> i = args.iterator(); i.hasNext();) {
+        for (final Iterator<String> i = args.iterator(); i.hasNext(); ) {
             final String arg = i.next();
             if (arg.equals(STOP_PARSING_FLAG)) {
                 return null;
@@ -111,7 +111,7 @@ class CmdLineParser {
         return null;
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------
 
     private static List<String> getSupportedLogLevels() {
         final List<String> logLevels = new ArrayList<>();
@@ -158,6 +158,10 @@ class CmdLineParser {
                 }
             }
         }
+
+        if (algorithms.containsKey("SHA-1")) {
+            algorithms.put("Git", Collections.emptySortedSet());
+        }
         return algorithms;
     }
 
@@ -188,46 +192,17 @@ class CmdLineParser {
         return sb.toString();
     }
 
-    private static String parseAlgorithm(final List<String> args) throws ExitException {
+    private static Algorithm parseAlgorithm(final List<String> args) throws ExitException {
         String value = seekOption(args, Option.ALGORITHM);
         if (value == null) {
             value = Option.ALGORITHM.defaultValue;
         }
 
         try {
-            MessageDigest.getInstance(value);
-            return value;
+            return new Algorithm(value, null);
         } catch (final NoSuchAlgorithmException e) {
             throw buildExitWithHelp("Algorithm '" + value + "' is not supported. Supported algorithms: " +
                     printSupportedAlgorithms(false), ExitException.INVALID_ARGUMENT_ALGORITHM);
-        }
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
-    private static List<String> getSupportedEnvelopes() {
-        final List<String> envelopes = new ArrayList<>();
-        for (final Envelope v : Envelope.values()) {
-            envelopes.add(v.name().toLowerCase(Locale.ROOT));
-        }
-        return envelopes;
-    }
-
-    private static String printSupportedEnvelopes() {
-        return String.join(", ", getSupportedEnvelopes());
-    }
-
-    private static Envelope parseEnvelope(final List<String> args) throws ExitException {
-        String value = seekOption(args, Option.ENVELOPE);
-        if (value == null) {
-            value = Option.ENVELOPE.defaultValue;
-        }
-
-        try {
-            return Envelope.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (final IllegalArgumentException e) {
-            throw buildExitWithHelp("Unknown envelope: '" + value + "', supported envelopes are: " +
-                    printSupportedEnvelopes(), ExitException.INVALID_ARGUMENT_ENVELOPE);
         }
     }
 
@@ -255,7 +230,7 @@ class CmdLineParser {
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------
 
     private static List<String> getSupportedVerifications() {
         final List<String> verifications = new ArrayList<>();
@@ -292,7 +267,8 @@ class CmdLineParser {
         logger = loggerFactory.apply(logLevel);
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Parsing arguments:" + NL + String.join(NL, args));
+            logger.debug("Parsing arguments:\n" +
+                    String.join("\n", args));
         }
 
         if (logger.isDebugEnabled()) {
@@ -314,16 +290,12 @@ class CmdLineParser {
             logger.debug("Using verification: " + verification);
         }
 
-        envelope = parseEnvelope(remainingArgs);
-        if (logger.isDebugEnabled()) {
-            logger.debug("Using envelope: " + verification);
-        }
-
         if (!remainingArgs.isEmpty() && remainingArgs.get(0).equals(STOP_PARSING_FLAG)) {
             remainingArgs.remove(0);
         }
         if (logger.isTraceEnabled()) {
-            logger.trace("Remaining arguments after processing additional options:" + NL + String.join(NL, remainingArgs));
+            logger.trace("Remaining arguments after processing additional options:\n" +
+                    String.join("\n", remainingArgs));
         }
 
         if (remainingArgs.isEmpty()) {
