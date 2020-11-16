@@ -1,0 +1,7 @@
+!.git/
+!.idea/
+!*target/
+
+!.gitignore
+!LICENSE
+!README.md
