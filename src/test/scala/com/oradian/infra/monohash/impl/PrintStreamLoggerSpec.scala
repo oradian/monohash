@@ -4,8 +4,6 @@ package impl
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.Locale
 
-import org.specs2.matcher.MatchResult
-
 class PrintStreamLoggerSpec extends Specification {
   "Cross product of level and logging works" >> {
     for (level <- Logger.Level.values.toSeq) yield {

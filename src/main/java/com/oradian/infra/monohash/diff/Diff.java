@@ -24,7 +24,11 @@ public class Diff {
     }
 
     public boolean isEmpty() {
-        return adds.isEmpty() && renames.isEmpty() && modifies.isEmpty() && deletes.isEmpty();
+        return size() == 0;
+    }
+
+    public int size() {
+        return adds.size() + renames.size() + modifies.size() + deletes.size();
     }
 
     private static class AddRename {
@@ -52,14 +56,7 @@ public class Diff {
 
         @Override
         public boolean equals(final Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (!(obj instanceof ArrKey)) {
-                return false;
-            }
-            final ArrKey that = (ArrKey) obj;
-            return Arrays.equals(arr, that.arr);
+            return Arrays.equals(arr, ((ArrKey) obj).arr);
         }
     }
 

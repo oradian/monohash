@@ -1,12 +1,8 @@
 package com.oradian.infra.monohash
 
-import java.io.File
+import java.io.{ByteArrayOutputStream, File}
 import java.nio.file.Files
-
-import org.specs2.matcher.MatchResult
-
-import scala.jdk.CollectionConverters._
-import scala.util.Random
+import java.security.MessageDigest
 
 class HashResultsSpec extends Specification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
@@ -60,23 +56,37 @@ class HashResultsSpec extends Specification {
   "HashResults can be empty" >> {
     val hr = HashResults.apply(logger, algorithm, Array.emptyByteArray)
     hr.size ==== 0
+    hr.## ==== 0
+
+    // equality checks
+    (hr == hr) ==== true
+    hr.equals(null) ==== false
+
+    // hash caching test
+    val emptySha = MessageDigest.getInstance("SHA").digest()
+    hr.hash() ==== emptySha
+    hr.hash() ==== emptySha
+
     test(hr, Seq.empty)
   }
 
   "HashResults corruption handling" >> {
     "Missing last newline" >> {
-      val hash = algorithm.init(() => 0L).digest(Random.nextBytes(100))
-      val line = s"${Hex.toHex(hash)} missing".getBytes(UTF_8)
-      val hr = HashResults.apply(logger, algorithm, line)
-      hr.size() ==== 1
-      test(hr, Seq("missing" -> hash))
+      // to test off-by-one errors in Arrays.copyOf resizing
+      for (i <- 1 to 500 by 150) yield {
+        val hash = algorithm.init(() => 0L).digest(Random.nextBytes(i))
+        val line = s"${Hex.toHex(hash)} ${"x" * i}".getBytes(UTF_8)
+        val hr = HashResults.apply(logger, algorithm, line)
+        hr.size() ==== 1
+        test(hr, Seq("x" * i -> hash))
+      }
     }
 
     "Garbage instead of line" >> {
       val line = "*garbage*\n".getBytes(UTF_8)
       val hr = HashResults.apply(logger, algorithm, line)
       hr.size() ==== 1
-      hr.toMap must throwA[ExportParsingException]("""Cannot parse export line #0: \*garbage\*""")
+      hr.toMap must throwA[ExportParsingException]("""Cannot parse export line #1: \*garbage\*""")
     }
 
     "Missing separator after hash" >> {
@@ -87,7 +97,43 @@ ${Hex.toHex(hash2)}XgarbageX
 """.getBytes(UTF_8)
       val hr = HashResults.apply(logger, algorithm, lines)
       hr.size() ==== 2
-      hr.toMap must throwA[ExportParsingException](s"""Could not split hash from path in export line #1: ${Hex.toHex(hash2)}XgarbageX""")
+      hr.toMap must throwA[ExportParsingException](s"""Could not split hash from path in export line #2: ${Hex.toHex(hash2)}XgarbageX""")
+    }
+
+    "Empty path string" >> {
+      val lines = "da39a3ee5e6b4b0d3255bfef95601890afd80709 \n".getBytes(UTF_8)
+      val hr = HashResults.apply(logger, algorithm, lines)
+      hr.size() ==== 1
+      hr.toMap must throwA[ExportParsingException]("Path was empty on line #1: da39a3ee5e6b4b0d3255bfef95601890afd80709 ")
+    }
+
+    "Multiple identical paths" >> {
+      val hash = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val lines = (s"""${Hex.toHex(hash)} /collision/path
+""" * 2).getBytes(UTF_8)
+
+      val hr = HashResults.apply(logger, algorithm, lines)
+      hr.size() ==== 2
+      hr.toMap must throwA[ExportParsingException]("At least two export lines found with identical paths '/collision/path'")
+    }
+
+    "Malformed UTF-8 in path" >> {
+      val hash = algorithm.init(() => 0L).digest()
+      val lines = {
+        val baos = new ByteArrayOutputStream()
+        baos.write(Hex.toHex(hash).getBytes(UTF_8))
+        baos.write(' ')
+        baos.write("£3.50".getBytes(ISO_8859_1)) // £ is \u00A3 and encodes as 0xA3 in ISO-8859-1 (1:1)
+        baos.write('\n')                         // this will break the UTF-8 decoder which requires each high-bit
+        baos.toByteArray                         // character to be preceded by another (i.e. 0xC2 0xA3)
+      }
+
+      val hr = HashResults.apply(logger, algorithm, lines)
+      hr.size() ==== 1
+
+      val lossyDecode = new String("da39a3ee5e6b4b0d3255bfef95601890afd80709 £3.50".getBytes(ISO_8859_1), UTF_8)
+      lossyDecode ==== "da39a3ee5e6b4b0d3255bfef95601890afd80709 �3.50"
+      hr.toMap must throwA[ExportParsingException]("Could not decode export line #1 using UTF-8: " + lossyDecode)
     }
   }
 }

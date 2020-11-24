@@ -4,10 +4,14 @@ import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 
-import scala.jdk.StreamConverters._
+import scala.collection.convert.{AsJavaExtensions, AsScalaExtensions, StreamExtensions}
 import scala.util.Properties.isWin
 
-package object monohash {
+package object monohash
+    extends AsJavaExtensions
+    with AsScalaExtensions
+    with StreamExtensions {
+
   val projectRoot: String = {
     val path = getClass.getProtectionDomain.getCodeSource.getLocation
       .getPath.replaceFirst("(.*/)target/.*", "$1")
@@ -38,4 +42,9 @@ package object monohash {
   val ISO_8859_1: Charset = java.nio.charset.StandardCharsets.ISO_8859_1
 
   type Specification = org.specs2.mutable.Specification
+  type MatchResult[T] = org.specs2.matcher.MatchResult[T]
+
+  type File = java.io.File
+
+  val Random: scala.util.Random.type = scala.util.Random
 }

@@ -90,13 +90,13 @@ class CmdLineParser {
                 String value = arg.substring(option.flag.length());
                 if (value.isEmpty()) {
                     if (!i.hasNext()) {
-                        throw buildExitWithHelp("Missing value for " + option.name + ", last argument was an alone '" + option.flag + "'", ExitException.INVALID_ARGUMENT_GENERIC);
+                        throw buildExitWithHelp("Missing value for " + option.name + ", last argument was an alone '" + option.flag + '\'', ExitException.INVALID_ARGUMENT_GENERIC);
                     }
 
                     value = i.next();
                     i.remove();
                     if (value.equals(STOP_PARSING_FLAG)) {
-                        throw buildExitWithHelp("Missing value for " + option.name + ", next argument was the stop flag '" + STOP_PARSING_FLAG + "'", ExitException.INVALID_ARGUMENT_GENERIC);
+                        throw buildExitWithHelp("Missing value for " + option.name + ", next argument was the stop flag '" + STOP_PARSING_FLAG + '\'', ExitException.INVALID_ARGUMENT_GENERIC);
                     }
                     if (value.isEmpty()) {
                         throw buildExitWithHelp("Empty value provided for " + option.name, ExitException.INVALID_ARGUMENT_GENERIC);
@@ -143,12 +143,10 @@ class CmdLineParser {
 
     private static SortedMap<String, SortedSet<String>> getSupportedAlgorithms() {
         final SortedMap<String, SortedSet<String>> algorithms = new TreeMap<>();
+        for (final String algorithm : Security.getAlgorithms("MessageDigest")) {
+            algorithms.put(algorithm, new TreeSet<>());
+        }
         for (final Provider provider : Security.getProviders()) {
-            for (final Provider.Service service : provider.getServices()) {
-                if (service.getType().equals("MessageDigest")) {
-                    algorithms.putIfAbsent(service.getAlgorithm(), new TreeSet<>());
-                }
-            }
             for (final Map.Entry<Object, Object> service : provider.entrySet()) {
                 final String description = service.getKey().toString();
                 if (description.startsWith("Alg.Alias.MessageDigest.")) {
@@ -159,13 +157,13 @@ class CmdLineParser {
             }
         }
 
-        if (algorithms.containsKey("SHA-1")) {
+        if (algorithms.containsKey("SHA")) {
             algorithms.put("Git", Collections.emptySortedSet());
         }
         return algorithms;
     }
 
-    private static boolean isAlgorithmNameHumanReadible(final String algorithm) {
+    private static boolean isAlgorithmNameHumanReadable(final String algorithm) {
         return !algorithm.matches("(?:OID|\\d).*");
     }
 
@@ -174,10 +172,10 @@ class CmdLineParser {
         final StringBuilder sb = new StringBuilder();
         for (final Map.Entry<String, SortedSet<String>> entry : algorithms.entrySet()) {
             final String algorithm = entry.getKey();
-            if (!humanReadable || isAlgorithmNameHumanReadible(algorithm)) {
+            if (!humanReadable || isAlgorithmNameHumanReadable(algorithm)) {
                 sb.append(entry.getKey());
                 final List<String> aliases = entry.getValue().stream()
-                        .filter(name -> !humanReadable || isAlgorithmNameHumanReadible(name))
+                        .filter(name -> !humanReadable || isAlgorithmNameHumanReadable(name))
                         .collect(Collectors.toList());
                 if (!aliases.isEmpty()) {
                     sb.append(" (aliases: ").append(String.join(", ", aliases)).append(")");
@@ -222,7 +220,7 @@ class CmdLineParser {
         try {
             final int concurrency = Integer.parseInt(value);
             if (concurrency < 1) {
-                throw buildExitWithHelp("Concurrency must be a positive integer, got: '" + value + "'", ExitException.INVALID_ARGUMENT_CONCURRENCY);
+                throw buildExitWithHelp("Concurrency must be a positive integer, got: '" + value + '\'', ExitException.INVALID_ARGUMENT_CONCURRENCY);
             }
             return concurrency;
         } catch (final NumberFormatException e) {
@@ -277,7 +275,7 @@ class CmdLineParser {
 
         algorithm = parseAlgorithm(remainingArgs);
         if (logger.isDebugEnabled()) {
-            logger.debug("Using algorithm: " + algorithm);
+            logger.debug("Using algorithm: " + algorithm.name);
         }
 
         concurrency = parseConcurrency(remainingArgs);
@@ -287,7 +285,7 @@ class CmdLineParser {
 
         verification = parseVerification(remainingArgs);
         if (logger.isDebugEnabled()) {
-            logger.debug("Using verification: " + verification);
+            logger.debug("Using verification: " + verification.name().toLowerCase(Locale.ROOT));
         }
 
         if (!remainingArgs.isEmpty() && remainingArgs.get(0).equals(STOP_PARSING_FLAG)) {
@@ -307,10 +305,10 @@ class CmdLineParser {
             throw buildExitWithHelp("Provided [hash plan file] was an empty string", ExitException.INVALID_ARGUMENT_GENERIC);
         }
         if (remainingArgs.isEmpty()) {
-            exportPath = null;
             if (verification == Verification.REQUIRE) {
-                throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
+                throw buildExitWithHelp("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED);
             }
+            exportPath = null;
         } else {
             exportPath = remainingArgs.remove(0);
             if (exportPath.isEmpty()) {
@@ -319,7 +317,7 @@ class CmdLineParser {
         }
 
         if (!remainingArgs.isEmpty()) {
-            throw buildExitWithHelp("There are too many arguments provided after [hash plan file] and [export file], first was: '" + remainingArgs.get(0) + "'", ExitException.INVALID_ARGUMENT_TOO_MANY);
+            throw buildExitWithHelp("There are too many arguments provided after [hash plan file] and [export file], first was: '" + remainingArgs.get(0) + '\'', ExitException.INVALID_ARGUMENT_TOO_MANY);
         }
     }
 }

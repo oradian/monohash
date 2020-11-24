@@ -11,7 +11,6 @@ public final class Delete extends Change {
         this.srcHash = srcHash;
     }
 
-
     @Override
     protected void appendTo(final StringBuilder sb) {
         sb.append("- ")

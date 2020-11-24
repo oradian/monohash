@@ -34,11 +34,11 @@ OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_272-b10)
 OpenJDK 64-Bit Server VM (AdoptOpenJDK)(build 25.272-b10, mixed mode)
 
 [melezov@ci-01 monohash]$ sbt clean package
-[info] welcome to sbt 1.3.13 (AdoptOpenJDK Java 1.8.0_272)
-[info] Compiling 12 Java sources to /home/melezov/monohash/target/classes ...
-[success] Total time: 1 s, completed Nov 16, 2020 1:19:37 AM
+[info] welcome to sbt 1.4.3 (AdoptOpenJDK Java 1.8.0_272)
+[info] compiling 19 Java sources to /home/melezov/monohash/target/classes ...
+[success] Total time: 1 s, completed Nov 24, 2020 6:20:25 PM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.7.0.jar ~/linux-5.9
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.7.0-SNAPSHOT.jar ~/linux-5.9
 [info] Using [hash plan directory]: /home/melezov/linux-5.9 ...
 [info] Hashed 74,094 files with a total of 980,846,931 bytes in 0.764 sec (average speed: 96,981 files/sec, 1224.4 MB/sec)
 [info] Executed hash plan by hashing 74,094 files in 0.874 sec
@@ -204,9 +204,9 @@ It is possible to run MonoHash against a project without specifying a hash plan 
 directory instead. MonoHash will behave as if you have ran it against a completely empty `.monohash` hash plan in that
 directory, by adding every directory and file to the whitelist and not excluding anything.
 
-Take into consideration that this is probably not something that will be useful if you have folders such as `.git/`,
+Take into consideration that this is probably not something that will be useful if you have folders such as `.git`,
 since this will invalidate hashes due to subtle differences in the way the underlying Git database is packaged.  
-You usually want to exclude your SVC-specific files and directories as the first thing when specifying a hash plan.
+You usually want to exclude your VCS-specific files and directories as the first thing when specifying a hash plan.
 
 #### Additional options
 
@@ -220,8 +220,8 @@ The supported algorithms are gathered by querying registered security providers,
 version that's running MonoHash and if you have external providers such as
 [Bouncy Castle](https://www.bouncycastle.org/).  
   An additional synthetic algorithm `Git` is made available by MonoHash. It depends on `SHA-1` and allows you to use
-  hashing compatible with [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it uses
-  the `"blob ${length}\0"` prefix and then proceeds with appending the rest of the binary file.
+  hashing compatible with [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it first
+  processes the `"blob ${length}\0"` prefix and then proceeds with hashing the rest of the file.
 
 - `-c <concurrency>` will by default query the number of available processors, and can be overridden with a positive
 integer. The work is both IO (reading) and CPU bound, depending on the digest algorithm used.

@@ -1,11 +1,5 @@
 package com.oradian.infra.monohash
 
-import java.io.File
-
-import org.specs2.matcher.MatchResult
-
-import scala.jdk.CollectionConverters._
-
 class WhiteWalkerSpec extends Specification {
   private[this] val logger = new LoggingLogger
   private[this] val algorithm = new Algorithm("SHA-1")

@@ -1,12 +1,10 @@
 package com.oradian.infra.monohash
 
-import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.io.{ByteArrayOutputStream, PrintStream, RandomAccessFile}
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
 import com.oradian.infra.monohash.impl.PrintStreamLogger
-
-import scala.jdk.StreamConverters._
 
 class MonoHashSpec extends Specification {
   private[this] def withPS[T](f: PrintStream => T): (T, String) = {
@@ -127,6 +125,79 @@ class MonoHashSpec extends Specification {
           err must contain("The [export file] must not end with a slash: " + trailingSlash)
         }
       }
+    }
+  }
+
+  private[this] def withLock[T](path: String)(f: => T): T = {
+    val raf = new RandomAccessFile(path, "rw")
+    try {
+      val fc = raf.getChannel
+      try {
+        val lock = fc.lock()
+        try {
+          f
+        } finally {
+          lock.release()
+        }
+      } finally {
+        fc.close()
+      }
+    } finally {
+      raf.close()
+    }
+  }
+
+  "I/O error handling" >> {
+    "Cannot read hash plan" >> {
+      val ((exitCode, out), err) = inWorkspace { ws =>
+        val plan = ws + "plan"
+        withLock(plan) {
+          systemTest(plan)
+        }
+      }
+      exitCode ==== ExitException.HASH_PLAN_CANNOT_READ
+    }
+
+    "Cannot read export file" >> {
+      val ((exitCode, out), err) = inWorkspace { source =>
+        inWorkspace { ws =>
+          val export = ws + "export.txt"
+          withLock(export) {
+            systemTest("-vrequire", source, export)
+          }
+        }
+      }
+      exitCode ==== ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ
+    }
+
+    "Cannot write export file" >> {
+      val ((exitCode, out), err) = inWorkspace { source =>
+        // Interestingly, if we try to write an empty file over a file that is currently
+        // locked using the RandomAccessFile("rw")'s FileChannel.lock it will succeed!
+        // This is why we'll create "something" in source dir so that the export file is not empty,
+        // otherwise the process would happily truncate the export file and exit successfully
+        new File(source + "something").createNewFile()
+        inWorkspace { ws =>
+          val export = ws + "export.txt"
+          withLock(export) {
+            systemTest("-vwarn", source, export)
+          }
+        }
+      }
+      exitCode ==== ExitException.EXPORT_FILE_CANNOT_WRITE
+    }
+  }
+
+  "Non-canonical files handling" >> {
+    "Broken hash plan path" >> {
+      val logger = new LoggingLogger
+      new MonoHash(logger).run(new File("\u0000"), null, null, 0, null) must
+        throwAn[ExitException]("Could not resolve canonical path of \\[hash plan file\\]: \u0000")
+    }
+    "Broken export path" >> {
+      val logger = new LoggingLogger
+      new MonoHash(logger).run(new File(resources), new File("\u0000"), null, 0, null) must
+        throwAn[ExitException]("Could not resolve canonical path of \\[export file\\]: \u0000")
     }
   }
 }

@@ -16,7 +16,7 @@ public class ExitException extends Exception {
     public static final int HASH_PLAN_FILE_ENDS_WITH_SLASH        = 2010;
     public static final int HASH_PLAN_FILE_NOT_FOUND              = 2020;
     public static final int HASH_PLAN_FILE_CANONICAL_ERROR        = 2030;
-    public static final int HASH_PLAN_ERROR_READING               = 2040;
+    public static final int HASH_PLAN_CANNOT_READ                 = 2040;
 
     public static final int EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED = 3000;
     public static final int EXPORT_FILE_ENDS_WITH_SLASH           = 3010;
@@ -25,7 +25,7 @@ public class ExitException extends Exception {
     public static final int EXPORT_FILE_VERIFICATION_MISMATCH     = 3040;
     public static final int EXPORT_FILE_CANONICAL_ERROR           = 3050;
     public static final int EXPORT_FILE_REQUIRED_BUT_CANNOT_READ  = 3060;
-    public static final int EXPORT_FILE_ERROR_WRITING             = 3070;
+    public static final int EXPORT_FILE_CANNOT_WRITE              = 3070;
 
     public static final int MONOHASH_EXECUTION_ERROR              = 4000;
 

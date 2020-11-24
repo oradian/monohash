@@ -1,6 +1,6 @@
 package com.oradian.infra.monohash
 
-import java.io.File
+import java.io.IOException
 import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
@@ -59,9 +59,9 @@ class HashPlanSpec extends Specification {
 
   "HashPlans must be rooted in reality" >> {
     HashPlan.apply(logger, new File("\u0000")) must
-      throwAn[RuntimeException]("Could not resolve canonical path for \\[hash plan\\]: \u0000")
+      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]: \u0000")
 
     HashPlan.apply(logger, new File("\u0000"), Array.emptyByteArray) must
-      throwAn[RuntimeException]("Could not resolve canonical path for \\[hash plan\\]'s parent: \u0000")
+      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]'s parent: \u0000")
   }
 }

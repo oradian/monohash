@@ -103,13 +103,13 @@ public class HashResults {
                 lineHash = Hex.fromHex(lines, lastEnd, algorithm.lengthInBytes << 1);
             } catch (final NumberFormatException e) {
                 final String line = new String(lines, lastEnd, lineLength - 1, StandardCharsets.UTF_8);
-                throw new ExportParsingException("Cannot parse export line #" + index + ": " + line, e);
+                throw new ExportParsingException("Cannot parse export line #" + (index + 1) + ": " + line, e);
             }
 
             final int pathOffset = lastEnd + (algorithm.lengthInBytes << 1) + 1;
             if (lines[pathOffset - 1] != ' ') {
                 final String line = new String(lines, lastEnd, lineLength - 1, StandardCharsets.UTF_8);
-                throw new ExportParsingException("Could not split hash from path in export line #" + index + ": " + line);
+                throw new ExportParsingException("Could not split hash from path in export line #" + (index + 1) + ": " + line);
             }
 
             final int pathByteLength = lineLength - (algorithm.lengthInBytes << 1) - 2;
@@ -119,10 +119,14 @@ public class HashResults {
                 path = utf8.decode(bb).toString();
             } catch (final CharacterCodingException e) {
                 final String line = new String(lines, lastEnd, lineLength - 1, StandardCharsets.UTF_8);
-                throw new ExportParsingException("Could not decode export line #" + index + " using UTF-8: " + line, e);
+                throw new ExportParsingException("Could not decode export line #" + (index + 1) + " using UTF-8: " + line, e);
+            }
+            if (path.isEmpty()) {
+                final String line = new String(lines, lastEnd, lineLength - 1, StandardCharsets.UTF_8);
+                throw new ExportParsingException("Path was empty on line #" + (index + 1) + ": " + line);
             }
             if (result.put(path, lineHash) != null) {
-                throw new ExportParsingException("At least two export lines found with identical path: " + path + ", second line was #" + index);
+                throw new ExportParsingException("At least two export lines found with identical paths '" + path + '\'');
             }
         }
 

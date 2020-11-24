@@ -1,7 +1,7 @@
 package com.oradian.infra.monohash
 package diff
 
-import org.specs2.matcher.MatchResult
+import java.util.{Collections, Arrays => JArrays}
 
 class DiffSpec extends Specification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
@@ -73,22 +73,27 @@ Renamed files:
 
 """)
 
-  "Mixed changes" >> test(
-    toMap(
+  "Mixed changes" >> {
+    val src = toMap(
       "To be deleted" -> '1',
       "To be changed" -> '2',
       "To stay the same" -> '3',
       "To also be deleted" -> '4',
-      "To be renamed" -> '5'
-    ),
-    toMap(
+      "To be renamed" -> '5',
+    )
+
+    val dst = toMap(
       "Added" -> 'a',
       "To be changed" -> 'b',
       "To stay the same" -> '3',
-      "Renamed" -> '5'
-    ),
-    """Added files:
+      "Renamed" -> '5',
+      "Copied from 'To be renamed'" -> '5',
+    )
+
+    "Stringly test" >> test(src, dst,
+      """Added files:
 + aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa Added
++ 5555555555555555555555555555555555555555 Copied from 'To be renamed'
 
 Renamed files:
 ~ 5555555555555555555555555555555555555555 Renamed (previously: To be renamed)
@@ -102,18 +107,65 @@ Deleted files:
 
 """)
 
-  "No changes" >> test(
-    toMap(
-      "To stay the same" -> 'a',
-      "Keep status quo" -> 'b',
-      "Don't rock the boat" -> 'c',
-    ),
-    toMap(
-      "To stay the same" -> 'a',
-      "Keep status quo" -> 'b',
-      "Don't rock the boat" -> 'c',
-    ),
-    "")
+    "Object test" >> {
+      val diff = Diff.apply(src, dst)
+
+      def hh(ch: Char): Array[Byte] = Hex.fromHex((ch.toString * 40).getBytes(ISO_8859_1))
+
+      diff.adds ==== JArrays.asList(
+        new Add("Added", hh('a')),
+        new Add("Copied from 'To be renamed'", hh('5')),
+      )
+      diff.renames ==== JArrays.asList(
+        new Rename("To be renamed", "Renamed", hh('5')),
+      )
+
+      diff.changes.get(2) === JArrays.asList(
+        new Modify("To be changed", hh('2'), hh('b')),
+      )
+
+      val del1 = new Delete("To be deleted", hh('1'))
+
+      // self/null checks
+      (del1 == del1) ==== true
+      del1 !=== (null: Delete)
+
+      // class check
+      (diff.adds.get(0): Change) !=== (del1: Change)
+
+      // hashCode/equals checks
+      diff.deletes.get(0) ==== del1
+      diff.deletes.get(0).## ==== del1.hashCode
+
+      // .toString check
+      diff.changes.get(3).toString ==== Seq(
+        del1.toString,
+        "- 4444444444444444444444444444444444444444 To also be deleted",
+      ).mkString("[", ", ", "]")
+    }
+  }
+
+  "No changes" >> {
+    "Noop via maps" >> {
+      test(
+        toMap(
+          "To stay the same" -> 'a',
+          "Keep status quo" -> 'b',
+          "Don't rock the boat" -> 'c',
+        ),
+        toMapX(
+          "To stay the same" -> 'a',
+          "Keep status quo" -> 'b',
+          "Don't rock the boat" -> 'c',
+        ),
+        "")
+    }
+
+    Diff.apply(
+      Collections.emptyMap(),
+      Collections.emptyMap(),
+    ).isEmpty ==== true
+  }
 
   "Ordering changes" >> test(
     toMap(

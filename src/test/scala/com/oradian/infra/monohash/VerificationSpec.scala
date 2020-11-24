@@ -1,11 +1,6 @@
 package com.oradian.infra.monohash
 
-import java.io.File
 import java.nio.file.{Files, Paths}
-
-import org.specs2.matcher.MatchResult
-
-import scala.util.Random
 
 class VerificationSpec extends Specification {
   "When export file is not provided" >> {
@@ -44,8 +39,8 @@ class VerificationSpec extends Specification {
         val algorithm = new Algorithm("MD5")
         val hashResults = new MonoHash(logger).run(new File(ws), missingExport, algorithm, 2, verification)
         Hex.toHex(hashResults.hash()) ==== "33ce171b266744dfce9c5d0e66635c5d" and
-          loggerCheck(logger) and
-          Files.readAllBytes(missingExport.toPath) ==== "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n".getBytes(UTF_8)
+        loggerCheck(logger) and
+        Files.readAllBytes(missingExport.toPath) ==== "e1faffb3e614e6c2fba74296962386b7 three-A.txt\n".getBytes(UTF_8)
       }
     }
 
@@ -105,7 +100,7 @@ class VerificationSpec extends Specification {
           logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
           logger.messages(Logger.Level.WARN) ==== Seq(
             LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
-              "Cannot parse export line #0: *garbage*")
+              "Cannot parse export line #1: *garbage*")
           )
         }
       }
@@ -114,7 +109,7 @@ class VerificationSpec extends Specification {
         testExport(Verification.WARN, previousExport, expectedExport) { logger =>
           logger.messages(Logger.Level.WARN) ==== Seq(
             LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
-              "Could not split hash from path in export line #0: " + previousExport.init)
+              "Could not split hash from path in export line #1: " + previousExport.init)
           )
         }
       }
@@ -123,7 +118,7 @@ class VerificationSpec extends Specification {
         testExport(Verification.WARN, previousExport, expectedExport) { logger =>
           logger.messages(Logger.Level.WARN) ==== Seq(
             LogMsg(Logger.Level.WARN, "Could not diff against the previous [export file]: " +
-              "Cannot parse export line #0: " + previousExport.init)
+              "Cannot parse export line #1: " + previousExport.init)
           )
         }
       }
@@ -134,7 +129,7 @@ class VerificationSpec extends Specification {
         logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== false
         logger.messages(Logger.Level.WARN) ==== Seq(
           LogMsg(Logger.Level.ERROR, "Could not diff against the previous [export file]: " +
-            "Cannot parse export line #0: *garbage*")
+            "Cannot parse export line #1: *garbage*")
         )
       } must throwAn[ExitException]("""\[verification\] was set to 'require', but there was a difference in export results""")
     }
@@ -196,10 +191,13 @@ class VerificationSpec extends Specification {
         }
 
         val export = new File(output + "export")
-        val momentInPast = System.currentTimeMillis() - 60 * 60 * 1000
 
         for (verification <- Verification.values.toSeq) yield {
-          export.setLastModified(momentInPast)
+          export.setLastModified(System.currentTimeMillis() - 60 * 60 * 1000)
+
+          // different OS will report with different time resolutions,
+          // re-read last modified time to ensure successful match below
+          val momentInPast = export.lastModified
 
           val logger = new LoggingLogger
           val parser = new CmdLineParser(Array("-v", verification.name, source, output + "export"), _ => logger)
@@ -214,6 +212,42 @@ class VerificationSpec extends Specification {
 
           export.lastModified() ==== momentInPast
         }
+      }
+    }
+  }
+
+  "Empty diff check" >> {
+    val logger = new LoggingLogger
+    inWorkspace { ws =>
+      val missingExport = new File(ws + "export.missing")
+      val algorithm = new Algorithm("MD5")
+      new MonoHash(logger).run(new File(ws), missingExport, algorithm, 2, Verification.WARN)
+
+      logger.messages().exists(_.msg startsWith "Read previous [export file]") ==== false
+      logger.messages().exists(_.msg == "Diffing against previous export ...") ==== true
+      logger.messages().exists(_.msg startsWith "Diffed against previous export") ==== true
+      logger.messages(Logger.Level.WARN) ==== Seq(
+        LogMsg(Logger.Level.WARN, "Previous [export file] were not read and there were no entries in current run to build a diff from"),
+      )
+      logger.messages().exists(_.msg startsWith "Wrote to [export file]") ==== true
+    }
+  }
+
+  "Hash different, but diff is empty (different ordering)" >> {
+    val logger = new LoggingLogger
+    inWorkspace { source =>
+      Files.write(Paths.get(source + "three-A.txt"), "AAA".getBytes(UTF_8))
+      Files.write(Paths.get(source + "three-B.txt"), "BBB".getBytes(UTF_8))
+      inWorkspace { output =>
+        val export = new File(output + "wrong-order.txt")
+        Files.write(export.toPath, """2bb225f0ba9a58930757a868ed57d9a3 three-B.txt
+e1faffb3e614e6c2fba74296962386b7 three-A.txt
+""".getBytes(UTF_8))
+        val algorithm = new Algorithm("MD5")
+        new MonoHash(logger).run(new File(source), export, algorithm, 2, Verification.WARN)
+        logger.messages(Logger.Level.WARN) ==== Seq(
+          LogMsg(Logger.Level.WARN, "Running diff against previous [export file] produced no differences, but the exports were not identical"),
+        )
       }
     }
   }

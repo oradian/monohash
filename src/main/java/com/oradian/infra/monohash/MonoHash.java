@@ -131,10 +131,8 @@ public class MonoHash {
             if (verification == Verification.REQUIRE) {
                 throw new ExitException("[verification] is set to 'require', but previous [export file] could not be read: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ, e);
             }
-            if (verification == Verification.WARN) {
-                if (logger.isWarnEnabled()) {
-                    logger.warn("Could not read the previous [export file]: " + e.getMessage());
-                }
+            if (verification == Verification.WARN && logger.isWarnEnabled()) {
+                logger.warn("Could not read the previous [export file]: " + e.getMessage());
             }
             return null;
         }
@@ -150,7 +148,7 @@ public class MonoHash {
             }
             return plan;
         } catch (final IOException e) {
-            throw new ExitException("Error reading [hash plan] file: " + planFile, ExitException.HASH_PLAN_ERROR_READING, e);
+            throw new ExitException("Error reading [hash plan] file: " + planFile, ExitException.HASH_PLAN_CANNOT_READ, e);
         }
     }
 
@@ -188,8 +186,9 @@ public class MonoHash {
                     logger.debug(String.format("Diffed against previous export (in %1.3f ms)", (endAt - startAt) / 1e6));
                 }
                 if (diff.isEmpty()) {
-                    msg = "Running diff against previous [export file] produced no obvious differences, but the files were not identical" +
-                    "\n{{{" + diff + "}}}\n";
+                    msg = previousResults != null
+                            ? "Running diff against previous [export file] produced no differences, but the exports were not identical"
+                            : "Previous [export file] were not read and there were no entries in current run to build a diff from";
                 } else {
                     msg = diff.toString();
                 }
@@ -197,9 +196,9 @@ public class MonoHash {
                 msg = "Could not diff against the previous [export file]: " + e.getMessage();
             }
             if (logWarn) {
-                logger.warn(msg); // logging loop
+                logger.warn(msg);
             } else {
-                logger.error(msg); // logging loop
+                logger.error(msg);
             }
         }
     }
@@ -236,7 +235,7 @@ public class MonoHash {
         try {
             newResults.export(exportFile);
         } catch (final IOException e) {
-            throw new ExitException("Error occurred while writing to [export file]: " + exportFile, ExitException.EXPORT_FILE_ERROR_WRITING, e);
+            throw new ExitException("Error occurred while writing to [export file]: " + exportFile, ExitException.EXPORT_FILE_CANNOT_WRITE, e);
         }
     }
 

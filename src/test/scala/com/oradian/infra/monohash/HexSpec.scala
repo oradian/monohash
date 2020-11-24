@@ -2,10 +2,6 @@ package com.oradian.infra.monohash
 
 import java.util.{Arrays => JArrays}
 
-import org.specs2.matcher.MatchResult
-
-import scala.util.Random
-
 class HexSpec extends Specification {
   private[this] final val ToLcHex = "0123456789abcdef".toCharArray
   private[this] def turtleHex(bytes: Array[Byte]): String = {

@@ -9,6 +9,8 @@ import java.util.function.Supplier;
 
 public class Algorithm {
     public final String name;
+    public final String underlying;
+    public final Provider provider;
     public final int lengthInBytes;
 
     private final ThreadLocal<MessageDigest> digest;
@@ -32,8 +34,13 @@ public class Algorithm {
         // The synthetic "Git" MessageDigest is actually "SHA-1" under the hood + a length prefix,
         // so that it's compatible with Git's object IDs: (https://git-scm.com/book/en/v2/Git-Internals-Git-Objects
 
-        final boolean isGit = algorithm.toLowerCase(Locale.ROOT).equals("git");
-        final String underlying = isGit ? "SHA-1" : algorithm;
+        final String name = algorithm.toUpperCase(Locale.ROOT);
+        if (name.equals("GIT")) {
+            this.name = "Git";
+            underlying = "SHA-1";
+        } else {
+            underlying = this.name = name;
+        }
 
         // Check if it's possible to instantiate the MessageDigest immediately, instead of failing later
         // If the provider has not been provided it will search through all of them by impl. default
@@ -41,18 +48,17 @@ public class Algorithm {
                 ? MessageDigest.getInstance(underlying)
                 : MessageDigest.getInstance(underlying, provider);
 
-        final Provider testProvider = testDigest.getProvider();
-        final String testAlgorithm = testDigest.getAlgorithm();
-
+        this.provider = testDigest.getProvider();
         lengthInBytes = testDigest.getDigestLength();
-
-        name = isGit ? "Git" : testAlgorithm;
         digest = ThreadLocal.withInitial(() -> {
             try {
                 // lock the provider for this particular algorithm
-                return MessageDigest.getInstance(testAlgorithm, testProvider);
+                return MessageDigest.getInstance(underlying, this.provider);
             } catch (final NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
+                // should not happen - something is very wrong
+                throw new RuntimeException("Unable to resolve '" + underlying +
+                        "' MessageDigest via provider '" + this.provider.getName() +
+                        "', even though this was previously successful", e);
             }
         });
     }

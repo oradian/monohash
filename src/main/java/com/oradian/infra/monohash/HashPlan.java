@@ -3,7 +3,6 @@ package com.oradian.infra.monohash;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,14 +34,14 @@ public class HashPlan {
         this.blacklist = blacklist;
     }
 
-    private static String resolveBasePath(final Logger logger, final File planParent, final List<String> lines) {
+    private static String resolveBasePath(final Logger logger, final File planParent, final List<String> lines) throws IOException {
         final List<String> basePathOverrides = lines.stream().filter(line -> line.startsWith("@")).distinct().collect(Collectors.toList());
 
         if (logger.isTraceEnabled()) {
             logger.trace("Found " + basePathOverrides.size() + " distinct base path overrides in hash plan");
         }
         if (basePathOverrides.size() > 1) {
-            throw new IllegalArgumentException("There is more than one base path override: '" + String.join("', '", basePathOverrides) + "'");
+            throw new IllegalArgumentException("There is more than one base path override: '" + String.join("', '", basePathOverrides) + '\'');
         }
 
         final File file;
@@ -66,7 +65,7 @@ public class HashPlan {
                     .replace('\\', '/')
                     .replaceFirst("/*$", "/");
         } catch (final IOException e) {
-            throw new RuntimeException("Could not resolve canonical path for [hash plan]'s parent: " + file, e);
+            throw new IOException("Could not resolve canonical path for [hash plan]'s parent: " + file, e);
         }
     }
 
@@ -143,7 +142,7 @@ public class HashPlan {
         return new ArrayList<>(dotPatch);
     }
 
-    static HashPlan apply(final Logger logger, final File planParent, final String plan) {
+    static HashPlan apply(final Logger logger, final File planParent, final String plan) throws IOException {
         // split on CR/LF and remove trailing whitespaces from each line
         final List<String> lines = Arrays.stream(plan.split("[ \t]*([\r\n]+|$)"))
                 .filter(line -> !line.isEmpty()).collect(Collectors.toList());
@@ -154,7 +153,7 @@ public class HashPlan {
 
         final String basePath = resolveBasePath(logger, planParent, lines);
         if (logger.isDebugEnabled()) {
-            logger.debug("Using base path: '" + basePath + "'");
+            logger.debug("Using base path: '" + basePath + '\'');
         }
 
         final Pattern blacklist = compileBlacklist(logger, lines);
@@ -162,7 +161,7 @@ public class HashPlan {
         return new HashPlan(basePath, whitelist, blacklist);
     }
 
-    static HashPlan apply(final Logger logger, final File planParent, final byte[] plan) throws CharacterCodingException {
+    static HashPlan apply(final Logger logger, final File planParent, final byte[] plan) throws IOException {
         // Use CharsetDecoder in order to explode on Character decoding issues
         // Vanilla String / Charset functions would silently skip errors and replace them with '�'
         final CharsetDecoder utf8 = StandardCharsets.UTF_8.newDecoder();
@@ -175,7 +174,7 @@ public class HashPlan {
         try {
             canoPlan = plan.getCanonicalFile();
         } catch (final IOException e) {
-            throw new RuntimeException("Could not resolve canonical path for [hash plan]: " + plan, e);
+            throw new IOException("Could not resolve canonical path for [hash plan]: " + plan, e);
         }
         if (canoPlan.isDirectory()) {
             if (logger.isDebugEnabled()) {

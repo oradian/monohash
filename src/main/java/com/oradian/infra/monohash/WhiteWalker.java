@@ -192,7 +192,7 @@ class WhiteWalker {
     private static String relativise(final String basePath, final File file) {
         final String path = file.getPath().replace('\\', '/') + (file.isDirectory() ? "/" : "");
         if (!path.startsWith(basePath)) {
-            throw new IllegalArgumentException("Child path '" + path + "' does not start with '" + basePath + "'");
+            throw new IllegalArgumentException("Child path '" + path + "' does not start with '" + basePath + '\'');
         }
         return path.substring(basePath.length());
     }
