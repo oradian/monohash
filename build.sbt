@@ -1,9 +1,9 @@
 organization := "com.oradian.infra"
 name := "monohash"
-version := "0.6.0"
+version := "0.7.0-SNAPSHOT"
 
 libraryDependencies ++= Seq(
-  "org.specs2"  %% "specs2-core" % "4.10.5" % Test,
+  "org.specs2" %% "specs2-core" % "4.10.5" % Test,
 )
 
 crossPaths := false
@@ -22,7 +22,7 @@ javacOptions := (javacOptions in doc).value ++ (Seq(
   Seq("-bootclasspath", jdk8 + "/jre/lib/rt.jar")
 }.getOrElse(Nil))
 
-scalaVersion := "2.13.3" // for tests only
+scalaVersion := "2.13.4" // for tests only
 scalacOptions := Seq(
   "-deprecation",
   "-encoding", "UTF-8",

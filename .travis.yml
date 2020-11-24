@@ -4,7 +4,8 @@ sudo: false
 
 branches:
   only:
-  - master
+    - develop
+    - master
 
 before_cache:
   # Tricks to avoid unnecessary cache updates
@@ -20,7 +21,7 @@ cache:
 language: scala
 
 scala:
-  - "2.13.3"
+  - "2.13.4"
 
 jdk:
   - openjdk15
