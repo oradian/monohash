@@ -1,9 +1,9 @@
 # MonoHash
-[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=master)](https://travis-ci.org/oradian/monohash)
+[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=develop)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
-[![Codecov](https://codecov.io/gh/oradian/monohash/branch/master/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
+[![Codecov](https://codecov.io/gh/oradian/monohash/branch/develop/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring
@@ -127,7 +127,7 @@ There is a comprehensive set of tests and `.monohash` examples in the
 [oradian/monohash repository](https://github.com/oradian/monohash/tree/master/src/test/resources) which can be observed
 for education purposes.
 
-MonoHash is written in pure Java with *no external dependencies* so its binary payload is tiny (~36kb).
+MonoHash is written in pure Java with *no external dependencies* so its binary payload is tiny (~45kb).
 It's able to integrate seamlessly into any type of JVM scripts (a'la Scala/Groovy), while easily being invokable from
 other build tools such as Yarn via command line utility.
 
@@ -170,7 +170,7 @@ Usage: java -jar monohash.jar [hash plan file] [export file (optional)]
 
 Additional options:
   -l <log level> (default: info, allowed values: off, error, warn, info, debug, trace)
-  -a <algorithm> (default: SHA-1, some allowed values: MD2, MD5, SHA-1 (aliases: SHA, SHA1), SHA-224 (aliases: SHA224), SHA-256 (aliases: SHA256), SHA-384 (aliases: SHA384), SHA-512 (aliases: SHA512), SHA-512/224 (aliases: SHA512/224), SHA-512/256 (aliases: SHA512/256), SHA3-224, SHA3-256, SHA3-384, SHA3-512)
+  -a <algorithm> (default: SHA-1, some allowed values: GIT, MD2, MD5, SHA-1 (aliases: SHA, SHA1), SHA-224 (aliases: SHA224), SHA-256 (aliases: SHA256), SHA-384 (aliases: SHA384), SHA-512 (aliases: SHA512), SHA-512/224 (aliases: SHA512/224), SHA-512/256 (aliases: SHA512/256), SHA3-224, SHA3-256, SHA3-384, SHA3-512)
   -c <concurrency> (default: 8 - taken from number of CPUs, unless specified here)
   -v <verification> (default: off, allowed values: off, warn, require)
   -- stops processing arguments to allow for filenames which may conflict with options above
@@ -180,17 +180,19 @@ The optional `[export file]` argument can be used to dump the hashes for each tr
 Running MonoHash on its own folder produces the following export file:
 ```
 81c58d80a333caf6c8e077e809f52755c4bf7b0d .monohash
-6fc65efb6b1d9c376c34e4a0fa3741e74284ea70 .travis.yml
-7eb8139e4bc10ff5e9ac8ab375c99bed8a50089e build.sbt
-ac05e1612a2833d31fb4f1bea78ca3b310d8fe79 project/build.properties
+1a98da71f224d591991ca4a13663c381a404eede .travis.yml
+e91e0a6e2ae28daabd36016589464890e988418e build.sbt
+aac1c402f5ba623eefcdf2f1c60258defff1973f project/build.properties
 6abd00785fa263b088b1cb1457270418a14fc5bf project/plugins.sbt
 bc5c5f56be234577c861a00de3b9a6b52bcd58e4 project/publish.sbt.disabled
 8be7a61b089e8250049887b3954037fb8833b13a publish.sbt.disabled
-83e8d7c321844570173f981eb4cd133bf811587f src/main/java/com/oradian/infra/monohash/CmdLineParser.java
-4c1ca82c475439ddaa17712ec1528614338a9b59 src/main/java/com/oradian/infra/monohash/Envelope.java
-dc736df0a8d63b88a0df7f5b9efe3bffc0736a4f src/main/java/com/oradian/infra/monohash/ExitException.java
-464a419def4d3b982e94671ddd7627fbc00489a7 src/main/java/com/oradian/infra/monohash/HashPlan.java
-78168ae48a5e33a1865121330cc87a3582683599 src/main/java/com/oradian/infra/monohash/HashResults.java
+229bbaf4041633f809bf3784a174e7f9c6fc9589 src/main/java/com/oradian/infra/monohash/Algorithm.java
+ae0181ec4c07e7d77789d8a66f4d4a2490ebe226 src/main/java/com/oradian/infra/monohash/CmdLineParser.java
+81197abdab8214610c2dab552dd4ceb1cdfaeeda src/main/java/com/oradian/infra/monohash/ExitException.java
+818b9e83e0a8e2cfbfc5783d28697957be9c8a52 src/main/java/com/oradian/infra/monohash/ExportParsingException.java
+b9ab413b5242698be57a2c5c947731d724ee4488 src/main/java/com/oradian/infra/monohash/HashPlan.java
+659f65aac9e6054ef762fa3d955311749f883421 src/main/java/com/oradian/infra/monohash/HashResults.java
+44b3176c9f64dfeaea81ddccc46006b9dc7e737a src/main/java/com/oradian/infra/monohash/HashWorker.java
 ...
 ```
 
@@ -217,7 +219,7 @@ When using MonoHash programmatically, you can bridge logging into your favourite
 - `-a <algorithm>` can be used to override the default digest algorithm (`SHA-1`). MonoHash will happily use faster
 algorithms such as `MD5`, or heavier stuff such as `SHA3-512`. Probably overkill, but the choice is yours.  
 The supported algorithms are gathered by querying registered security providers, i.e. they will depend on the JRE
-version that's running MonoHash and if you have external providers such as
+version that's running MonoHash and if you have loaded external providers such as
 [Bouncy Castle](https://www.bouncycastle.org/).  
   An additional synthetic algorithm `Git` is made available by MonoHash. It depends on `SHA-1` and allows you to use
   hashing compatible with [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it first

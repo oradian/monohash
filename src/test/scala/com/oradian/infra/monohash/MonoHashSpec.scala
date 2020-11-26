@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
 import com.oradian.infra.monohash.impl.PrintStreamLogger
+import org.specs2.execute.{AsResult, Result}
 
 class MonoHashSpec extends Specification {
   private[this] def withPS[T](f: PrintStream => T): (T, String) = {
@@ -147,8 +148,15 @@ class MonoHashSpec extends Specification {
     }
   }
 
+  def ifWin[R : AsResult](r: => R): Result =
+    if (isWin) {
+      AsResult(r)
+    } else {
+      pending("<test requires Windows>")
+    }
+
   "I/O error handling" >> {
-    "Cannot read hash plan" >> {
+    "Cannot read hash plan" >> ifWin {
       val ((exitCode, out), err) = inWorkspace { ws =>
         val plan = ws + "plan"
         withLock(plan) {
@@ -158,7 +166,7 @@ class MonoHashSpec extends Specification {
       exitCode ==== ExitException.HASH_PLAN_CANNOT_READ
     }
 
-    "Cannot read export file" >> {
+    "Cannot read export file" >> ifWin {
       val ((exitCode, out), err) = inWorkspace { source =>
         inWorkspace { ws =>
           val export = ws + "export.txt"
@@ -170,12 +178,14 @@ class MonoHashSpec extends Specification {
       exitCode ==== ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ
     }
 
-    "Cannot write export file" >> {
+    "Cannot write export file" >> ifWin {
       val ((exitCode, out), err) = inWorkspace { source =>
-        // Interestingly, if we try to write an empty file over a file that is currently
+        // On Windows, if we try to write an empty file over a file that is currently
         // locked using the RandomAccessFile("rw")'s FileChannel.lock it will succeed!
         // This is why we'll create "something" in source dir so that the export file is not empty,
         // otherwise the process would happily truncate the export file and exit successfully
+        // Linux doesn't support anything similar, as the flock is completely advisory there
+        // TODO: figure out a better way to crash MonoHash in tests ...
         new File(source + "something").createNewFile()
         inWorkspace { ws =>
           val export = ws + "export.txt"

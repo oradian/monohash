@@ -5,8 +5,6 @@ import com.oradian.infra.monohash.Logger.Level;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.security.NoSuchAlgorithmException;
-import java.security.Provider;
-import java.security.Security;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -17,7 +15,7 @@ class CmdLineParser {
 
     private enum Option {
         LOG_LEVEL   ("-l", "log level",    "info", () -> ", allowed values: " + printSupportedLogLevels()),
-        ALGORITHM   ("-a", "algorithm",    "SHA-1", () -> ", some allowed values: " + printSupportedAlgorithms(true)),
+        ALGORITHM   ("-a", "algorithm",    Algorithm.SHA_1, () -> ", some allowed values: " + printSupportedAlgorithms(true)),
         CONCURRENCY ("-c", "concurrency",  String.valueOf(getCurrentDefaultConcurrency()), () -> " - taken from number of CPUs, unless specified here"),
         VERIFICATION("-v", "verification", "off", () -> ", allowed values: " + printSupportedVerifications()),
         ;
@@ -141,34 +139,12 @@ class CmdLineParser {
 
     // -----------------------------------------------------------------------------------------
 
-    private static SortedMap<String, SortedSet<String>> getSupportedAlgorithms() {
-        final SortedMap<String, SortedSet<String>> algorithms = new TreeMap<>();
-        for (final String algorithm : Security.getAlgorithms("MessageDigest")) {
-            algorithms.put(algorithm, new TreeSet<>());
-        }
-        for (final Provider provider : Security.getProviders()) {
-            for (final Map.Entry<Object, Object> service : provider.entrySet()) {
-                final String description = service.getKey().toString();
-                if (description.startsWith("Alg.Alias.MessageDigest.")) {
-                    final String alias = description.substring("Alg.Alias.MessageDigest.".length());
-                    final String key = service.getValue().toString();
-                    algorithms.get(key).add(alias);
-                }
-            }
-        }
-
-        if (algorithms.containsKey("SHA")) {
-            algorithms.put("Git", Collections.emptySortedSet());
-        }
-        return algorithms;
-    }
-
     private static boolean isAlgorithmNameHumanReadable(final String algorithm) {
         return !algorithm.matches("(?:OID|\\d).*");
     }
 
     private static String printSupportedAlgorithms(final boolean humanReadable) {
-        final SortedMap<String, SortedSet<String>> algorithms = getSupportedAlgorithms();
+        final SortedMap<String, SortedSet<String>> algorithms = Algorithm.getAlgorithms();
         final StringBuilder sb = new StringBuilder();
         for (final Map.Entry<String, SortedSet<String>> entry : algorithms.entrySet()) {
             final String algorithm = entry.getKey();

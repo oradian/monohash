@@ -92,10 +92,10 @@ class CmdLineParserSpec extends Specification {
       test("-a")() must throwAn[ExitException]("Missing value for algorithm, last argument was an alone '-a'")
       test("-a", "")() must throwAn[ExitException]("Empty value provided for algorithm")
       test("-a", "--")() must throwAn[ExitException]("Missing value for algorithm, next argument was the stop flag '--'")
-      test("-a", fakePlan)() must throwAn[ExitException](s"Algorithm '$fakePlan' is not supported. Supported algorithms: .*Git.*SHA.*OID")
+      test("-a", fakePlan)() must throwAn[ExitException](s"Algorithm '$fakePlan' is not supported. Supported algorithms: .*GIT.*SHA.*OID")
       test("-axxx", fakePlan)() must throwAn[ExitException]("Algorithm 'xxx' is not supported. Supported algorithms:")
       test("-a", "gIt", fakePlan)(
-        _.algorithm.name ==== "Git",
+        _.algorithm.name ==== "GIT",
         _.exportPath ==== null,
       )
       test("-aShA-256", "--", fakePlan)(
@@ -158,7 +158,7 @@ class CmdLineParserSpec extends Specification {
     "Complex additional options parsing with overrides" >> {
       test("-l", "off", "-a", "SHA-256", "-c", "2", "-aGIT", "-v", "warn", fakePlan)(
         _.logLevel ==== Logger.Level.OFF,
-        _.algorithm.name ==== "Git",
+        _.algorithm.name ==== "GIT",
         _.concurrency ==== 2,
         _.verification ==== Verification.WARN,
         _.hashPlanPath ==== fakePlan,
@@ -197,7 +197,7 @@ class CmdLineParserSpec extends Specification {
         Security.addProvider(provider)
       }
       // test restoration of sanity
-      test("-a", "Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕")() must throwAn[ExitException]("""Algorithm 'Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕' is not supported. Supported algorithms: .*Git.*SHA.*OID""")
+      test("-a", "Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕")() must throwAn[ExitException]("""Algorithm 'Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕' is not supported. Supported algorithms: .*GIT.*SHA.*OID""")
     }
   }
 }

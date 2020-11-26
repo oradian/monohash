@@ -5,12 +5,13 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 import scala.collection.convert.{AsJavaExtensions, AsScalaExtensions, StreamExtensions}
-import scala.util.Properties.isWin
 
 package object monohash
     extends AsJavaExtensions
     with AsScalaExtensions
     with StreamExtensions {
+
+  val isWin: Boolean = scala.util.Properties.isWin
 
   val projectRoot: String = {
     val path = getClass.getProtectionDomain.getCodeSource.getLocation

@@ -32,7 +32,7 @@ class AlgorithmSpec extends Specification {
     }
   }
 
-  "Algorithm 'Git' matches Git's blob object ID calculation" >> {
+  "Algorithm 'GIT' matches Git's blob object ID calculation" >> {
     "Check hardcoded" >> {
       inWorkspace { ws =>
         val bytes = "ABC".getBytes(UTF_8)
@@ -74,7 +74,7 @@ class AlgorithmSpec extends Specification {
     defaultProvider must beTheSameAs(explicitProvider)
   }
 
-  "'Should not happen'" >> {
+  "Test 'Should not happen' loss of digest service from provider" >> {
     val algorithm = new Algorithm("SHA-1")
 
     val underlyingField = algorithm.getClass.getField("underlying")
