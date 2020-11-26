@@ -38,7 +38,7 @@ OpenJDK 64-Bit Server VM (AdoptOpenJDK)(build 25.272-b10, mixed mode)
 [info] compiling 19 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 1 s, completed Nov 24, 2020 6:20:25 PM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.7.0-SNAPSHOT.jar ~/linux-5.9
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.7.0.jar ~/linux-5.9
 [info] Using [hash plan directory]: /home/melezov/linux-5.9 ...
 [info] Hashed 74,094 files with a total of 980,846,931 bytes in 0.764 sec (average speed: 96,981 files/sec, 1224.4 MB/sec)
 [info] Executed hash plan by hashing 74,094 files in 0.874 sec

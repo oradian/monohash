@@ -6,7 +6,7 @@ developers := Developer(id = "melezov", name = "Marko Elezovic", email = "marko.
 licenses += (("MIT", url("https://opensource.org/licenses/MIT")))
 startYear := Some(2019)
 
-sonatypeProfileName := "oradian"
+sonatypeProfileName := "com.oradian"
 publishMavenStyle := true
 
 publishTo := Some(
