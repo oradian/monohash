@@ -149,7 +149,7 @@ class MonoHashSpec extends Specification {
   }
 
   def ifWin[R : AsResult](r: => R): Result =
-    if (isWin) {
+    if (scala.util.Properties.isWin) {
       AsResult(r)
     } else {
       pending("<test requires Windows>")

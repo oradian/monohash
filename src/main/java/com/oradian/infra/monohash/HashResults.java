@@ -33,7 +33,7 @@ public class HashResults {
                 logger.trace("Calculating total hash ...");
             }
             final long startAt = System.nanoTime();
-            final MessageDigest md = algorithm.init(() -> (long) lines.length);
+            final MessageDigest md = algorithm.init(lines.length);
             hashCache = md.digest(lines);
             if (logger.isTraceEnabled()) {
                 final long endAt = System.nanoTime();

@@ -35,7 +35,7 @@ class HashResultsSpec extends Specification {
     }
 
     val bytes = Files.readAllBytes(roundtripFile.toPath)
-    val md = algorithm.init(() => 0L)
+    val md = algorithm.init(() => ???)
     md.digest(bytes) ==== hashResults.hash()
 
     roundtripFile.delete()
@@ -74,7 +74,7 @@ class HashResultsSpec extends Specification {
     "Missing last newline" >> {
       // to test off-by-one errors in Arrays.copyOf resizing
       for (i <- 1 to 500 by 150) yield {
-        val hash = algorithm.init(() => 0L).digest(Random.nextBytes(i))
+        val hash = algorithm.init(() => ???).digest(Random.nextBytes(i))
         val line = s"${Hex.toHex(hash)} ${"x" * i}".getBytes(UTF_8)
         val hr = HashResults.apply(logger, algorithm, line)
         hr.size() ==== 1
@@ -90,8 +90,8 @@ class HashResultsSpec extends Specification {
     }
 
     "Missing separator after hash" >> {
-      val hash1 = algorithm.init(() => 0L).digest(Random.nextBytes(100))
-      val hash2 = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val hash1 = algorithm.init(() => ???).digest(Random.nextBytes(100))
+      val hash2 = algorithm.init(() => ???).digest(Random.nextBytes(100))
       val lines = s"""${Hex.toHex(hash1)} ok/path
 ${Hex.toHex(hash2)}XgarbageX
 """.getBytes(UTF_8)
@@ -108,7 +108,7 @@ ${Hex.toHex(hash2)}XgarbageX
     }
 
     "Multiple identical paths" >> {
-      val hash = algorithm.init(() => 0L).digest(Random.nextBytes(100))
+      val hash = algorithm.init(() => ???).digest(Random.nextBytes(100))
       val lines = (s"""${Hex.toHex(hash)} /collision/path
 """ * 2).getBytes(UTF_8)
 
@@ -118,7 +118,7 @@ ${Hex.toHex(hash2)}XgarbageX
     }
 
     "Malformed UTF-8 in path" >> {
-      val hash = algorithm.init(() => 0L).digest()
+      val hash = algorithm.init(() => ???).digest()
       val lines = {
         val baos = new ByteArrayOutputStream()
         baos.write(Hex.toHex(hash).getBytes(UTF_8))

@@ -69,8 +69,8 @@ class AlgorithmSpec extends Specification {
   }
 
   "Default provider vs provided provider" >> {
-    val defaultProvider = new Algorithm("md5").init(() => 0L).getProvider
-    val explicitProvider = new Algorithm("md5", defaultProvider).init(() => 0L).getProvider
+    val defaultProvider = new Algorithm("md5").init(() => ???).getProvider
+    val explicitProvider = new Algorithm("md5", defaultProvider).init(() => ???).getProvider
     defaultProvider must beTheSameAs(explicitProvider)
   }
 
@@ -84,5 +84,62 @@ class AlgorithmSpec extends Specification {
     algorithm.init(() => ???) must throwA[RuntimeException](
       s"""Unable to resolve 'Not Available' MessageDigest via provider '${
         algorithm.provider.getName}', even though this was previously successful""")
+  }
+
+  "Merge test - code golf exercise" >> {
+    def mergeTest(s: Set[String]*)(d: (String, Seq[String])*): MatchResult[_] = {
+      val (algorithms, aliases) = s.partition(_.size == 1)
+
+      Algorithm.linkAlgorithms(
+        algorithms.map(_.head).toSet.asJava,
+        aliases.map(s => new java.util.TreeSet(s.asJava): java.util.SortedSet[String]).asJava,
+      ).asScala.toSeq.map { case (k, set) => k -> set.asScala.toSeq } ==== d
+    }
+
+    mergeTest()()
+
+    mergeTest(
+      Set("A"),
+    )(
+      "A" -> Seq(),
+    )
+
+    mergeTest(
+      Set("A"),
+      Set("B"),
+    )(
+      "A" -> Seq(),
+      "B" -> Seq(),
+    )
+
+    mergeTest(
+      Set("A", "B"),
+      Set("B"),
+    )(
+      "B" -> Seq("A")
+    )
+
+    mergeTest(
+      Set("3", "4"),
+      Set("1", "2"),
+    )(
+      "1" -> Seq("2"),
+      "3" -> Seq("4"),
+    )
+
+    mergeTest(
+      Set("A", "B"),
+      Set("B", "C"),
+      Set("D"),
+      Set("E", "F"),
+      Set("F", "D"),
+      Set("G", "H"),
+      Set("H", "I"),
+      Set("I", "SHA-1"),
+      Set("C", "I")
+    )(
+      "D" -> Seq("E", "F"),
+      "SHA-1" -> Seq("A", "B", "C", "G", "H", "I"),
+    )
   }
 }

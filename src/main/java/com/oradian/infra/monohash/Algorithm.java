@@ -1,12 +1,12 @@
 package com.oradian.infra.monohash;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.*;
-import java.util.function.Supplier;
 
 public class Algorithm {
     public static final String SHA_1 = "SHA-1";
@@ -17,17 +17,26 @@ public class Algorithm {
     public final Provider provider;
     public final int lengthInBytes;
 
+    @FunctionalInterface
+    public interface LengthSupplier {
+        long get() throws IOException;
+    }
+
     private final ThreadLocal<MessageDigest> digest;
-    public MessageDigest init(final Supplier<Long> length) {
+    public MessageDigest init(final long length) {
         final MessageDigest md = digest.get();
         md.reset();
 
         if (name.equals(GIT)) {
-            final byte[] header = ("blob " + length.get() + '\u0000').getBytes(StandardCharsets.ISO_8859_1);
+            final byte[] header = ("blob " + length + '\u0000').getBytes(StandardCharsets.ISO_8859_1);
             md.update(header);
         }
 
         return md;
+    }
+
+    public MessageDigest init(final LengthSupplier length) throws IOException {
+        return init(name.equals(GIT) ? length.get() : 0L);
     }
 
     public Algorithm(final String algorithm) throws NoSuchAlgorithmException {
@@ -37,7 +46,7 @@ public class Algorithm {
     public Algorithm(final String algorithm, final Provider provider) throws NoSuchAlgorithmException {
         name = algorithm.toUpperCase(Locale.ROOT);
 
-        // The synthetic "GIT" MessageDigest is actually "SHA-1" under the hood + a length prefix,
+        // The synthetic "GIT" algorithm is actually "SHA-1" under the hood + a length prefix,
         // so that it's compatible with Git's object IDs: (https://git-scm.com/book/en/v2/Git-Internals-Git-Objects
         underlying = name.equals(GIT) ? SHA_1 : name;
 
@@ -64,74 +73,76 @@ public class Algorithm {
 
     // =================================================================================================================
 
-    private static Map<String, Set<String>> getAliases() {
-        final Map<String, Set<String>> aliases = new TreeMap<>();
-        for (final String algorithm : Security.getAlgorithms("MessageDigest")) {
-            final Set<String> selfAlias = new TreeSet<>();
-            selfAlias.add(algorithm);
-            aliases.put(algorithm, selfAlias);
+    private static String voteForName(final Set<String> algorithms, final SortedSet<String> aliases) {
+        if (aliases.contains(SHA_1)) {
+            return SHA_1;
         }
+        for (final String alias : aliases) {
+            if (algorithms.contains(alias)) {
+                return alias;
+            }
+        }
+        return aliases.first();
+    }
+
+    static SortedMap<String, SortedSet<String>> linkAlgorithms(final Set<String> algorithms, final List<SortedSet<String>> aliases) {
+        final TreeMap<String, SortedSet<String>> cache = new TreeMap<>();
+        for (final String algorithm : algorithms) {
+            final TreeSet<String> self = new TreeSet<>();
+            self.add(algorithm);
+            cache.put(algorithm, self);
+        }
+        for (final SortedSet<String> aliasPair : aliases) {
+            final String a1 = aliasPair.first();
+            final String a2 = aliasPair.last();
+            final SortedSet<String> previous1 = cache.get(a1);
+            final SortedSet<String> previous2 = cache.get(a2);
+            if (previous1 == null && previous2 == null) {
+                cache.put(a1, aliasPair);
+                cache.put(a2, aliasPair);
+            } else if (previous1 == null) {
+                previous2.add(a1);
+                cache.put(a1, previous2);
+            } else if (previous2 == null) {
+                previous1.add(a2);
+                cache.put(a2, previous1);
+            } else {
+                previous1.addAll(previous2);
+                for (final String k2 : previous2) {
+                    cache.put(k2, previous1);
+                }
+            }
+        }
+        final TreeMap<String, SortedSet<String>> result = new TreeMap<>();
+        for (final SortedSet<String> group : new HashSet<>(cache.values())) { // HashSet to dedup values
+            final String key = voteForName(algorithms, group);
+            group.remove(key); // separate voted key from aliases
+            result.put(key, group);
+        }
+        return result;
+    }
+
+    public static SortedMap<String, SortedSet<String>> getAlgorithms() {
+        final Set<String> algorithms = Security.getAlgorithms("MessageDigest");
+
+        final ArrayList<SortedSet<String>> aliasPairs = new ArrayList<>();
         for (final Provider provider : Security.getProviders()) {
             for (final Map.Entry<Object, Object> service : provider.entrySet()) {
                 final String description = service.getKey().toString();
                 if (description.startsWith("Alg.Alias.MessageDigest.")) {
-                    final String alias = description.substring("Alg.Alias.MessageDigest.".length()).toUpperCase(Locale.ROOT);
-                    final String algorithm = service.getValue().toString().toUpperCase(Locale.ROOT);
-                    aliases.computeIfAbsent(alias, x -> new HashSet<>()).add(algorithm);
-                }
-            }
-        }
-        return aliases;
-    }
-
-    private static String voteForName(final SortedSet<String> algorithms) {
-        return algorithms.contains(SHA_1) ? SHA_1 : algorithms.first();
-    }
-
-    private static Map<String, String> linkAlgorithms(final Map<String, Set<String>> aliases) {
-        final Map<String, SortedSet<String>> mergers = new HashMap<>();
-        for (final Set<String> names : aliases.values()) {
-            final SortedSet<String> expansion = new TreeSet<>();
-            for (final String v : names) {
-                expansion.add(v);
-                final Set<String> previous = mergers.get(v);
-                if (previous != null) {
-                    expansion.addAll(previous);
-                }
-            }
-            for (final String v : expansion) {
-                mergers.put(v, expansion);
-            }
-        }
-
-        final Map<String, String> selection = new HashMap<>();
-        for (final String key : mergers.keySet()) {
-            selection.put(key, voteForName(mergers.get(key)));
-        }
-        return selection;
-    }
-
-    public static SortedMap<String, SortedSet<String>> getAlgorithms() {
-        final Map<String, Set<String>> aliases = getAliases();
-        final Map<String, String> selection = linkAlgorithms(aliases);
-
-        final SortedMap<String, SortedSet<String>> algorithms = new TreeMap<>();
-        for (final Map.Entry<String, Set<String>> aliasEntry : aliases.entrySet()) {
-            final String aliasName = aliasEntry.getKey();
-            for (final String algorithm : aliasEntry.getValue()) {
-                final String selectedName = selection.get(algorithm);
-                final SortedSet<String> onlyAliases =
-                        algorithms.computeIfAbsent(selectedName, x -> new TreeSet<>());
-                if (!aliasName.equals(selectedName)) {
-                    onlyAliases.add(aliasName);
+                    final TreeSet<String> aliasPair = new TreeSet<>();
+                    aliasPair.add(description.substring("Alg.Alias.MessageDigest.".length()).toUpperCase(Locale.ROOT));
+                    aliasPair.add(service.getValue().toString().toUpperCase(Locale.ROOT));
+                    aliasPairs.add(aliasPair);
                 }
             }
         }
 
-        // synthesize virtual "GIT" algorithm if underlying "SHA-1" is available
-        if (aliases.containsKey(SHA_1)) {
-            algorithms.put(GIT, Collections.emptySortedSet());
+        final SortedMap<String, SortedSet<String>> result = linkAlgorithms(algorithms, aliasPairs);
+        if (result.containsKey(SHA_1)) {
+            // synthesize virtual "GIT" algorithm if underlying "SHA-1" is available
+            result.put(GIT, Collections.emptySortedSet());
         }
-        return algorithms;
+        return result;
     }
 }

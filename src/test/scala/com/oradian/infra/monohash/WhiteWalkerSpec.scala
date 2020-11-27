@@ -10,7 +10,7 @@ class WhiteWalkerSpec extends Specification {
     val actualHashResults = WhiteWalker.apply(logger, hashPlan, algorithm, 1).toMap.asScala.view.mapValues(_.toSeq).toSeq
 
     val expectedHashResults = expectedFiles.toSeq map { file =>
-      val nameHash = algorithm.init(() => 0L)
+      val nameHash = algorithm.init(() => ???)
         .digest(file.replaceFirst(".*/", "").getBytes("UTF-8"))
       (file, nameHash.toSeq)
     }

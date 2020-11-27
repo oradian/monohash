@@ -11,13 +11,12 @@ package object monohash
     with AsScalaExtensions
     with StreamExtensions {
 
-  val isWin: Boolean = scala.util.Properties.isWin
+  val projectRoot: String =
+    new File(getClass.getProtectionDomain.getCodeSource.getLocation.toURI)
+      .getCanonicalPath
+      .replace('\\', '/')
+      .replaceFirst("(.*/)target/.*", "$1")
 
-  val projectRoot: String = {
-    val path = getClass.getProtectionDomain.getCodeSource.getLocation
-      .getPath.replaceFirst("(.*/)target/.*", "$1")
-    if (isWin) path.tail else path // deal with leading '/' on Windows
-  }
   val resources: String = projectRoot + "src/test/resources/"
 
   private[this] val workspace: String = projectRoot + "target/workspace/"

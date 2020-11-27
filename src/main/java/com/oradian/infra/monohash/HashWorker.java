@@ -39,26 +39,19 @@ public class HashWorker {
         }
 
         final long startAt = System.nanoTime();
-        try (final RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-            final MessageDigest md = algorithm.init(() -> {
-                try {
-                    return raf.length();
-                } catch (final IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+        try (final RandomAccessFile raf = new RandomAccessFile(file, "r");
+             final FileChannel fc = raf.getChannel()) {
+            final MessageDigest md = algorithm.init(fc::size);
 
-            final FileChannel fc = raf.getChannel();
             while (true) {
                 buffer.clear();
                 final int read = fc.read(buffer);
-                if (read > 0) {
-                    buffer.flip();
-                    md.update(buffer);
-                    bytesHashed.add(read);
-                } else if (read == -1) {
+                if (read == -1) {
                     break;
                 }
+                buffer.flip();
+                md.update(buffer);
+                bytesHashed.add(read);
             }
             final byte[] result = md.digest();
             if (logger.isTraceEnabled()) {

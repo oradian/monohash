@@ -15,7 +15,7 @@ class CmdLineParser {
 
     private enum Option {
         LOG_LEVEL   ("-l", "log level",    "info", () -> ", allowed values: " + printSupportedLogLevels()),
-        ALGORITHM   ("-a", "algorithm",    Algorithm.SHA_1, () -> ", some allowed values: " + printSupportedAlgorithms(true)),
+        ALGORITHM   ("-a", "algorithm",    Algorithm.SHA_1, () -> ", some allowed values: " + printSupportedAlgorithms(false)),
         CONCURRENCY ("-c", "concurrency",  String.valueOf(getCurrentDefaultConcurrency()), () -> " - taken from number of CPUs, unless specified here"),
         VERIFICATION("-v", "verification", "off", () -> ", allowed values: " + printSupportedVerifications()),
         ;
@@ -42,7 +42,7 @@ class CmdLineParser {
         }
     }
 
-    private static ExitException buildExitWithHelp(final String extraMessage, final int exitCode) {
+    private static ExitException buildExitWithHelp(final String message, final int exitCode) {
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw);
 
@@ -55,10 +55,8 @@ class CmdLineParser {
         pw.println("  " + STOP_PARSING_FLAG + " stops processing arguments to allow for filenames which may conflict with options above");
         pw.println();
 
-        if (extraMessage != null) {
-            pw.println(extraMessage);
-            pw.println();
-        }
+        pw.println(message);
+        pw.println();
 
         return new ExitException(sw.toString(), exitCode);
     }
@@ -139,25 +137,16 @@ class CmdLineParser {
 
     // -----------------------------------------------------------------------------------------
 
-    private static boolean isAlgorithmNameHumanReadable(final String algorithm) {
-        return !algorithm.matches("(?:OID|\\d).*");
-    }
-
-    private static String printSupportedAlgorithms(final boolean humanReadable) {
+    private static String printSupportedAlgorithms(final boolean showAliases) {
         final SortedMap<String, SortedSet<String>> algorithms = Algorithm.getAlgorithms();
         final StringBuilder sb = new StringBuilder();
         for (final Map.Entry<String, SortedSet<String>> entry : algorithms.entrySet()) {
-            final String algorithm = entry.getKey();
-            if (!humanReadable || isAlgorithmNameHumanReadable(algorithm)) {
-                sb.append(entry.getKey());
-                final List<String> aliases = entry.getValue().stream()
-                        .filter(name -> !humanReadable || isAlgorithmNameHumanReadable(name))
-                        .collect(Collectors.toList());
-                if (!aliases.isEmpty()) {
-                    sb.append(" (aliases: ").append(String.join(", ", aliases)).append(")");
-                }
-                sb.append(", ");
+            sb.append(entry.getKey());
+            final SortedSet<String> aliases = entry.getValue();
+            if (showAliases && !aliases.isEmpty()) {
+                sb.append(" (aliases: ").append(String.join(", ", aliases)).append(")");
             }
+            sb.append(", ");
         }
         if (sb.length() == 0) {
             return "<none>";
@@ -176,7 +165,7 @@ class CmdLineParser {
             return new Algorithm(value, null);
         } catch (final NoSuchAlgorithmException e) {
             throw buildExitWithHelp("Algorithm '" + value + "' is not supported. Supported algorithms: " +
-                    printSupportedAlgorithms(false), ExitException.INVALID_ARGUMENT_ALGORITHM);
+                    printSupportedAlgorithms(true), ExitException.INVALID_ARGUMENT_ALGORITHM);
         }
     }
 
