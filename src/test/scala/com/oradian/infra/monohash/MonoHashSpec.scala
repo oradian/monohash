@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
 import com.oradian.infra.monohash.impl.PrintStreamLogger
+import com.oradian.infra.monohash.util.Hex
 
 class MonoHashSpec extends Specification {
   private[this] def systemTest(args: String*): ((Int, String), String) =
@@ -76,7 +77,7 @@ class MonoHashSpec extends Specification {
           val ((exitCode, out), err) = systemTest(trailingSlash)
           exitCode ==== ExitException.HASH_PLAN_FILE_ENDS_WITH_SLASH
           out must beEmpty
-          err must contain("The [hash plan file] must not end with a slash: " + trailingSlash)
+          err must contain("The [hash plan file] must not end with a slash: '" + trailingSlash + "'")
         }
       }
     }
@@ -113,7 +114,7 @@ class MonoHashSpec extends Specification {
           val ((exitCode, out), err) = systemTest(ws, trailingSlash)
           exitCode ==== ExitException.EXPORT_FILE_ENDS_WITH_SLASH
           out must beEmpty
-          err must contain("The [export file] must not end with a slash: " + trailingSlash)
+          err must contain("The [export file] must not end with a slash: '" + trailingSlash + "'")
         }
       }
     }
@@ -172,12 +173,12 @@ class MonoHashSpec extends Specification {
     "Broken hash plan path" >> {
       val logger = new LoggingLogger
       new MonoHash(logger).run(new File("\u0000"), null, null, 0, null) must
-        throwAn[ExitException]("Could not resolve canonical path of \\[hash plan file\\]: \u0000")
+        throwAn[ExitException]("Could not resolve canonical path of \\[hash plan file\\]: '\u0000'")
     }
     "Broken export path" >> {
       val logger = new LoggingLogger
       new MonoHash(logger).run(new File(resources), new File("\u0000"), null, 0, null) must
-        throwAn[ExitException]("Could not resolve canonical path of \\[export file\\]: \u0000")
+        throwAn[ExitException]("Could not resolve canonical path of \\[export file\\]: '\u0000'")
     }
   }
 

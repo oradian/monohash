@@ -1,4 +1,5 @@
 package com.oradian.infra.monohash
+package util
 
 import java.util.{Arrays => JArrays}
 

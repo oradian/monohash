@@ -1,6 +1,6 @@
 package com.oradian.infra.monohash.diff;
 
-import com.oradian.infra.monohash.Hex;
+import com.oradian.infra.monohash.util.Hex;
 
 public final class Modify extends Change {
     public final String path;

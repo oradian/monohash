@@ -8,7 +8,7 @@ import java.security.Provider;
 import java.security.Security;
 import java.util.*;
 
-public class Algorithm {
+public final class Algorithm {
     public static final String SHA_1 = "SHA-1";
     public static final String GIT = "GIT";
 
@@ -85,14 +85,17 @@ public class Algorithm {
         return aliases.first();
     }
 
-    static SortedMap<String, SortedSet<String>> linkAlgorithms(final Set<String> algorithms, final List<SortedSet<String>> aliases) {
+    static SortedMap<String, SortedSet<String>> linkAlgorithms(final Set<String> algorithms, final List<SortedSet<String>> aliasPairs) {
         final TreeMap<String, SortedSet<String>> cache = new TreeMap<>();
         for (final String algorithm : algorithms) {
             final TreeSet<String> self = new TreeSet<>();
             self.add(algorithm);
             cache.put(algorithm, self);
         }
-        for (final SortedSet<String> aliasPair : aliases) {
+        for (final SortedSet<String> aliasPair : aliasPairs) {
+            if (aliasPair.size() != 2) {
+                throw new IllegalArgumentException("Expected pairs of aliases, but got: " + aliasPair);
+            }
             final String a1 = aliasPair.first();
             final String a2 = aliasPair.last();
             final SortedSet<String> previous1 = cache.get(a1);
@@ -116,7 +119,7 @@ public class Algorithm {
         final TreeMap<String, SortedSet<String>> result = new TreeMap<>();
         for (final SortedSet<String> group : new HashSet<>(cache.values())) { // HashSet to dedup values
             final String key = voteForName(algorithms, group);
-            group.remove(key); // separate voted key from aliases
+            group.remove(key); // separate voted key from aliasPairs
             result.put(key, group);
         }
         return result;

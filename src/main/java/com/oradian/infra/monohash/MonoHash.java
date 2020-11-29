@@ -2,17 +2,17 @@ package com.oradian.infra.monohash;
 
 import com.oradian.infra.monohash.diff.Diff;
 import com.oradian.infra.monohash.impl.PrintStreamLogger;
+import com.oradian.infra.monohash.util.Format;
+import com.oradian.infra.monohash.util.Hex;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
-import java.text.NumberFormat;
 import java.util.Collections;
-import java.util.Locale;
 import java.util.Map;
 
-public class MonoHash {
+public final class MonoHash {
     public static void main(final String[] args) {
         final int exitCode = main(args, System.out, System.err);
         System.exit(exitCode);
@@ -25,7 +25,7 @@ public class MonoHash {
             out.println(Hex.toHex(hash));
             return ExitException.SUCCESS;
         } catch (final ExitException e) {
-            err.println(e.getMessage());
+            err.println(e.getMessage().replace("\n", PrintStreamLogger.NL));
             final Throwable cause = e.getCause();
             if (cause != null) {
                 cause.printStackTrace(err);
@@ -33,7 +33,6 @@ public class MonoHash {
             return e.exitCode;
         } catch (final Throwable t) {
             t.printStackTrace(err);
-            t.printStackTrace(System.out);
             return ExitException.ERROR_GENERIC;
         }
     }
@@ -48,14 +47,16 @@ public class MonoHash {
         final String hashPlanPath = parser.hashPlanPath.replaceFirst("[\\\\/]+$", "");
         final File hashPlanFile = new File(hashPlanPath);
         if (hashPlanFile.isFile() && !hashPlanPath.equals(parser.hashPlanPath)) {
-            throw new ExitException("The [hash plan file] must not end with a slash: " + parser.hashPlanPath, ExitException.HASH_PLAN_FILE_ENDS_WITH_SLASH);
+            throw new ExitException("The [hash plan file] must not end with a slash: '" + parser.hashPlanPath + '\'',
+                    ExitException.HASH_PLAN_FILE_ENDS_WITH_SLASH);
         }
 
         final File exportFile;
         if (parser.exportPath != null) {
             final String exportPath = parser.exportPath.replaceFirst("[\\\\/]+$", "");
             if (!exportPath.equals(parser.exportPath)) {
-                throw new ExitException("The [export file] must not end with a slash: " + parser.exportPath, ExitException.EXPORT_FILE_ENDS_WITH_SLASH);
+                throw new ExitException("The [export file] must not end with a slash: '" + parser.exportPath + '\'',
+                        ExitException.EXPORT_FILE_ENDS_WITH_SLASH);
             }
             exportFile = new File(parser.exportPath);
         } else {
@@ -70,16 +71,18 @@ public class MonoHash {
         try {
             planFile = hashPlan.getCanonicalFile();
         } catch (final IOException e) {
-            throw new ExitException("Could not resolve canonical path of [hash plan file]: " + hashPlan, ExitException.HASH_PLAN_FILE_CANONICAL_ERROR);
+            throw new ExitException("Could not resolve canonical path of [hash plan file]: " + Format.file(hashPlan),
+                    ExitException.HASH_PLAN_FILE_CANONICAL_ERROR);
         }
         if (!planFile.exists()) {
-            throw new ExitException("[hash plan file] must point to an existing file or directory, got: " + hashPlan, ExitException.HASH_PLAN_FILE_NOT_FOUND);
+            throw new ExitException("[hash plan file] must point to an existing file or directory, got: " + Format.file(hashPlan),
+                    ExitException.HASH_PLAN_FILE_NOT_FOUND);
         }
         if (logger.isInfoEnabled()) {
             if (planFile.isDirectory()) {
-                logger.info("Using [hash plan directory]: " + planFile + " ...");
+                logger.info("Using [hash plan directory]: " + Format.dir(planFile) + " ...");
             } else {
-                logger.info("Using [hash plan file]: " + planFile + " ...");
+                logger.info("Using [hash plan file]: " + Format.file(planFile) + " ...");
             }
         }
         return planFile;
@@ -88,7 +91,8 @@ public class MonoHash {
     private File resolveExportFile(final File export, final Verification verification) throws ExitException {
         if (export == null) {
             if (verification == Verification.REQUIRE) {
-                throw new ExitException("[verification] is set to 'require', but [export file] was not provided", ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED);
+                throw new ExitException("[verification] is set to 'require', but [export file] was not provided",
+                        ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_PROVIDED);
             }
             if (logger.isDebugEnabled()) {
                 logger.debug("Export file was not defined, skipping export ...");
@@ -98,11 +102,12 @@ public class MonoHash {
         try {
             final File exportFile = export.getCanonicalFile();
             if (logger.isInfoEnabled()) {
-                logger.info("Using [export file]: " + exportFile);
+                logger.info("Using [export file]: " + Format.file(exportFile));
             }
             return exportFile;
         } catch (final IOException e) {
-            throw new ExitException("Could not resolve canonical path of [export file]: " + export, ExitException.EXPORT_FILE_CANONICAL_ERROR, e);
+            throw new ExitException("Could not resolve canonical path of [export file]: " + Format.file(export),
+                    ExitException.EXPORT_FILE_CANONICAL_ERROR, e);
         }
     }
 
@@ -112,24 +117,26 @@ public class MonoHash {
         }
         if (!exportFile.exists()) {
             if (verification == Verification.REQUIRE) {
-                throw new ExitException("[verification] is set to 'require', but previous [export file] was not found: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
+                throw new ExitException("[verification] is set to 'require', but previous [export file] was not found: " +
+                        Format.file(exportFile), ExitException.EXPORT_FILE_REQUIRED_BUT_NOT_FOUND);
             }
             return null;
         }
         if (!exportFile.isFile()) {
-            throw new ExitException("[export file] is not a file: " + exportFile, ExitException.EXPORT_FILE_IS_NOT_A_FILE);
+            throw new ExitException("[export file] is not a file: " + Format.dir(exportFile),
+                    ExitException.EXPORT_FILE_IS_NOT_A_FILE);
         }
         try {
             final long startAt = System.nanoTime();
             final HashResults previousResults = HashResults.apply(logger, algorithm, Files.readAllBytes(exportFile.toPath()));
             if (logger.isTraceEnabled()) {
-                final long endAt = System.nanoTime();
-                logger.trace(String.format("Read previous [export file] '%s' (in %1.3f ms)", exportFile, (endAt - startAt) / 1e6));
+                logger.trace("Read previous [export file]: " + Format.file(exportFile) + Format.timeNanos(startAt));
             }
             return previousResults;
         } catch (final IOException e) {
             if (verification == Verification.REQUIRE) {
-                throw new ExitException("[verification] is set to 'require', but previous [export file] could not be read: " + exportFile, ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ, e);
+                throw new ExitException("[verification] is set to 'require', but previous [export file] could not be read: " +
+                        Format.file(exportFile), ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ, e);
             }
             if (verification == Verification.WARN && logger.isWarnEnabled()) {
                 logger.warn("Could not read the previous [export file]: " + e.getMessage());
@@ -139,32 +146,31 @@ public class MonoHash {
     }
 
     private HashPlan parseHashPlan(final File planFile) throws ExitException {
-        final long parseStartAt = System.currentTimeMillis();
+        final long startAt = System.nanoTime();
         try {
             final HashPlan plan = HashPlan.apply(logger, planFile);
             if (logger.isDebugEnabled()) {
-                final long parseEndAt = System.currentTimeMillis();
-                logger.debug(String.format("Parsed hash plan in %1.3f sec", (parseEndAt - parseStartAt) / 1e3));
+                logger.debug("Parsed hash plan" + Format.timeNanos(startAt));
             }
             return plan;
         } catch (final IOException e) {
-            throw new ExitException("Error reading [hash plan] file: " + planFile, ExitException.HASH_PLAN_CANNOT_READ, e);
+            throw new ExitException("Error reading [hash plan] file: " + Format.file(planFile),
+                    ExitException.HASH_PLAN_CANNOT_READ, e);
         }
     }
 
     private HashResults executeHashPlan(final HashPlan plan, final Algorithm algorithm, final int concurrency) throws ExitException {
-        final long executeStartAt = System.currentTimeMillis();
+        final long startAt = System.currentTimeMillis();
         try {
             final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, concurrency);
             if (logger.isInfoEnabled()) {
-                final String hexHash = Hex.toHex(hashResults.hash());
-                final long executeEndAt = System.currentTimeMillis();
-                logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec: %s",
-                        nf(hashResults.size()), (executeEndAt - executeStartAt) / 1e3, hexHash));
+                logger.info("Executed hash plan by hashing " + Format.i(hashResults.size()) + " files: " +
+                        Format.hex(hashResults.hash()) + Format.timeMillis(startAt));
             }
             return hashResults;
         } catch (final Exception e) {
-            throw new ExitException("Error executing [hash plan]: " + plan, ExitException.MONOHASH_EXECUTION_ERROR, e);
+            throw new ExitException("Error executing [hash plan]: '" + plan.basePath + '\'',
+                    ExitException.MONOHASH_EXECUTION_ERROR, e);
         }
     }
 
@@ -173,7 +179,7 @@ public class MonoHash {
         final boolean logError = verification == Verification.REQUIRE && logger.isErrorEnabled();
 
         if (logWarn || logError) {
-            String msg = "";
+            String msg;
             try {
                 if (logger.isTraceEnabled()) {
                     logger.trace("Diffing against previous export ...");
@@ -184,8 +190,7 @@ public class MonoHash {
                         : previousResults.toMap();
                 final Diff diff = Diff.apply(previousMap, newResults.toMap());
                 if (logger.isDebugEnabled()) {
-                    final long endAt = System.nanoTime();
-                    logger.debug(String.format("Diffed against previous export (in %1.3f ms)", (endAt - startAt) / 1e6));
+                    logger.debug("Diffed against previous export" + Format.timeNanos(startAt));
                 }
                 if (diff.isEmpty()) {
                     msg = previousResults != null
@@ -213,7 +218,7 @@ public class MonoHash {
 
         if (exportFile == null) {
             if (logger.isTraceEnabled()) {
-                logger.trace("Skipping export");
+                logger.trace("Skipping export ...");
             }
             return;
         }
@@ -224,20 +229,23 @@ public class MonoHash {
         } else {
             if (newResults.equals(previousResults)) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Previous hash result was identical, no need to update the [export file]: " + exportFile);
+                    logger.debug("Previous hash result was identical, no need to update the [export file]: " +
+                            Format.file(exportFile));
                 }
                 return;
             } else {
                 logDiff(previousResults, newResults, verification);
                 if (verification == Verification.REQUIRE) {
-                    throw new ExitException("[verification] was set to 'require', but there was a difference in export results", ExitException.EXPORT_FILE_VERIFICATION_MISMATCH);
+                    throw new ExitException("[verification] was set to 'require', but there was a difference in export results",
+                            ExitException.EXPORT_FILE_VERIFICATION_MISMATCH);
                 }
             }
         }
         try {
             newResults.export(exportFile);
         } catch (final IOException e) {
-            throw new ExitException("Error occurred while writing to [export file]: " + exportFile, ExitException.EXPORT_FILE_CANNOT_WRITE, e);
+            throw new ExitException("Error occurred while writing to [export file]: " + Format.file(exportFile),
+                    ExitException.EXPORT_FILE_CANNOT_WRITE, e);
         }
     }
 
@@ -251,10 +259,5 @@ public class MonoHash {
 
         exportResults(exportFile, previousResults, hashResults, verification);
         return hashResults;
-    }
-
-    private static final NumberFormat thousandsSeparatorFormat = NumberFormat.getIntegerInstance(Locale.ROOT);
-    static String nf(final long value) {
-        return thousandsSeparatorFormat.format(value);
     }
 }

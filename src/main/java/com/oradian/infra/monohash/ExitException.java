@@ -1,7 +1,7 @@
 package com.oradian.infra.monohash;
 
 @SuppressWarnings("serial")
-public class ExitException extends Exception {
+public final class ExitException extends Exception {
     public static final int SUCCESS                               =    0;
     public static final int ERROR_GENERIC                         =    1;
 

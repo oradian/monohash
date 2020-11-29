@@ -1,9 +1,9 @@
-package com.oradian.infra.monohash;
+package com.oradian.infra.monohash.util;
 
 import java.nio.charset.StandardCharsets;
 
 // It's mind-boggling that there is no decent hex utility in the JRE
-public class Hex {
+public final class Hex {
     private Hex() {}
 
     private static final byte[] TO_LC_HEX = "0123456789abcdef".getBytes(StandardCharsets.ISO_8859_1);

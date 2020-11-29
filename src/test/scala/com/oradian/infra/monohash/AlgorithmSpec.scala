@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.security.{MessageDigest, Security}
 import java.util.concurrent.atomic.LongAdder
 
+import com.oradian.infra.monohash.util.Hex
 import org.specs2.specification.core.Fragments
 
 class AlgorithmSpec extends Specification {

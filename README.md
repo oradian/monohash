@@ -10,7 +10,6 @@ It's primary purpose is to allow for lean CI/CD cache invalidation which will on
 projects which are impervious to these particular changes.
 
 
-
 ## Rationale
 
 Having a single monorepo-level hash, such as Git's commit hashes are not sufficiently fine-grained for the purposes of
@@ -25,26 +24,20 @@ runtime code and test code - this means that your CI can reuse a cached build if
 run the test part of that CI pipeline while keeping the previously built main artifacts.
 
 MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on the
-[Linux repository](https://github.com/torvalds/linux/releases/tag/v5.9) completes in under a second when running on
+[Linux repository](https://github.com/torvalds/linux/releases/tag/v5.10-rc5) completes in under a second when running on
 [Hetzner's PX line](https://www.hetzner.com/dedicated-rootserver/px62-nvme):
 ```
-[melezov@ci-01 monohash]$ java -version
-openjdk version "1.8.0_272"
-OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_272-b10)
-OpenJDK 64-Bit Server VM (AdoptOpenJDK)(build 25.272-b10, mixed mode)
-
-[melezov@ci-01 monohash]$ sbt clean package
+[melezov@ci-01 monohash]$ sbt package
 [info] welcome to sbt 1.4.3 (AdoptOpenJDK Java 1.8.0_272)
-[info] compiling 19 Java sources to /home/melezov/monohash/target/classes ...
-[success] Total time: 1 s, completed Nov 24, 2020 6:20:25 PM
+[info] set current project to monohash (in build file:/home/melezov/monohash/)
+[info] compiling 20 Java sources to /home/melezov/monohash/target/classes ...
+[success] Total time: 2 s, completed Nov 30, 2020 12:39:43 AM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.0-SNAPSHOT.jar ~/linux-5.9
-[info] Using [hash plan directory]: /home/melezov/linux-5.9 ...
-[info] Hashed 74,094 files with a total of 980,846,931 bytes in 0.764 sec (average speed: 96,981 files/sec, 1224.4 MB/sec)
-[info] Executed hash plan by hashing 74,094 files in 0.874 sec
-da1f972c1cada90873fdeeaf8be3db8d1fa2d054
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.0-SNAPSHOT.jar ~/linux-5.10-rc5/
+[info] Using [hash plan directory]: '/home/melezov/linux-5.10-rc5/' ...
+[info] Hashed 74,822 files with a total of 989,045,424 bytes in 0.792 sec (average speed: 94,472 files/sec, 1,190 MiB/sec)
+[info] Executed hash plan by hashing 74,822 files [9be032657c49009add50c4fbccd1d6bffaa4d593] (in 0.917 sec)
 ```
-
 
 
 ## Usage
@@ -115,7 +108,6 @@ affect the hash result.
 Blacklists can contain wildcards `*` that accept any number of characters (0 or more).
 
 
-
 ## Library and command line usage
 
 MonoHash hash plans do not need to be named `.monohash`, e.g. to support multiple hash plans in the root of the
@@ -130,7 +122,6 @@ for education purposes.
 MonoHash is written in pure Java with *no external dependencies* so its binary payload is tiny (~45kb).
 It's able to integrate seamlessly into any type of JVM scripts (a'la Scala/Groovy), while easily being invokable from
 other build tools such as Yarn via command line utility.
-
 
 ### Library dependency
 
@@ -156,7 +147,6 @@ SBT:
 libraryDependencies += "com.oradian.infra" % "monohash" % "0.7.0"
 ```
 
-
 ### Command-line usage:
 
 If you don't care about programmatic (library) access, you can simply
@@ -166,14 +156,14 @@ and use it on the command line.
 Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:
 
 ```
-Usage: java -jar monohash.jar [hash plan file] [export file (optional)]
+Usage: java -jar monohash.jar <options> [hash plan file] [export file (optional)]
 
-Additional options:
+Options:
   -l <log level> (default: info, allowed values: off, error, warn, info, debug, trace)
-  -a <algorithm> (default: SHA-1, some allowed values: GIT, MD2, MD5, SHA-1 (aliases: SHA, SHA1), SHA-224 (aliases: SHA224), SHA-256 (aliases: SHA256), SHA-384 (aliases: SHA384), SHA-512 (aliases: SHA512), SHA-512/224 (aliases: SHA512/224), SHA-512/256 (aliases: SHA512/256), SHA3-224, SHA3-256, SHA3-384, SHA3-512)
-  -c <concurrency> (default: 8 - taken from number of CPUs, unless specified here)
+  -a <algorithm> (default: SHA-1, some allowed values: GIT, MD2, MD5, SHA-1, SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, SHA-512/256, SHA3-224, SHA3-256, SHA3-384, SHA3-512)
+  -c <concurrency> (default: 8 - taken from number of CPUs)
   -v <verification> (default: off, allowed values: off, warn, require)
-  -- stops processing arguments to allow for filenames which may conflict with options above
+  -- stops parsing options to allow for filenames which may conflict with options above
 ```
 
 The optional `[export file]` argument can be used to dump the hashes for each traversed file.  
@@ -239,7 +229,6 @@ integer. The work is both IO (reading) and CPU bound, depending on the digest al
   overwriting the previous file.  
   The `require` verification is a good default for CI operations - e.g. you can run it before and after finishing a
   build to ensure that the export didn't mutate due to non-blacklisted items.
-
 
 
 ## License

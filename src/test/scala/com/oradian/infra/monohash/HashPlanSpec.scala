@@ -5,9 +5,7 @@ import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
 class HashPlanSpec extends Specification {
-  private[this] val logger = new LoggingLogger
-
-  private[this] def test(plan: String): HashPlan =
+  private[this] def test(plan: String, logger: Logger = new LoggingLogger): HashPlan =
     HashPlan.apply(logger, new File(resources + plan + "/.monohash"))
 
   "Enforces UTF-8" >> {
@@ -48,9 +46,19 @@ class HashPlanSpec extends Specification {
       resources + "whitelist/03-escapes/@sbt.boot.properties",
       resources + "whitelist/03-escapes/#1.log",
     )
+
+    "Duplicate whitelist entries" >> {
+      val logger = new LoggingLogger
+      test("whitelist/04-duplicates", logger).whitelist ==== JArrays.asList(resources + "whitelist/04-duplicates/../01-dot/")
+      logger.messages(Logger.Level.WARN) ==== Seq(
+        LogMsg(Logger.Level.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
+        LogMsg(Logger.Level.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
+      )
+    }
   }
 
   "Process directory as empty hash plan" >> {
+    val logger = new LoggingLogger
     val hashPlan = HashPlan.apply(logger, new File(resources))
     hashPlan.basePath ==== resources
     hashPlan.whitelist ==== JArrays.asList(resources)
@@ -58,10 +66,12 @@ class HashPlanSpec extends Specification {
   }
 
   "HashPlans must be rooted in reality" >> {
+    val logger = new LoggingLogger
+
     HashPlan.apply(logger, new File("\u0000")) must
-      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]: \u0000")
+      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]: '\u0000'")
 
     HashPlan.apply(logger, new File("\u0000"), Array.emptyByteArray) must
-      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]'s parent: \u0000")
+      throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]'s parent: '\u0000'")
   }
 }

@@ -2,6 +2,8 @@ package com.oradian.infra.monohash
 
 import java.nio.file.{Files, Paths}
 
+import com.oradian.infra.monohash.util.Hex
+
 class VerificationSpec extends Specification {
   "When export file is not provided" >> {
     def testNoExportProvided(verification: Verification): MatchResult[_] = {

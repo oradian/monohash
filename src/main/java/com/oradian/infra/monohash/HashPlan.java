@@ -1,5 +1,7 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.util.Format;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -7,13 +9,11 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-public class HashPlan {
+public final class HashPlan {
     public final String basePath;
     public final List<String> whitelist;
     public final Pattern blacklist;
@@ -35,7 +35,12 @@ public class HashPlan {
     }
 
     private static String resolveBasePath(final Logger logger, final File planParent, final List<String> lines) throws IOException {
-        final List<String> basePathOverrides = lines.stream().filter(line -> line.startsWith("@")).distinct().collect(Collectors.toList());
+        final LinkedHashSet<String> basePathOverrides = new LinkedHashSet<>();
+        for (final String line : lines) {
+            if (line.charAt(0) == '@') {
+                basePathOverrides.add(line);
+            }
+        }
 
         if (logger.isTraceEnabled()) {
             logger.trace("Found " + basePathOverrides.size() + " distinct base path overrides in hash plan");
@@ -48,7 +53,7 @@ public class HashPlan {
         if (basePathOverrides.isEmpty()) {
             file = planParent;
         } else {
-            final String line = basePathOverrides.get(0);
+            final String line = basePathOverrides.iterator().next();
             final String relBasePath = line.substring(1);
             if (relBasePath.isEmpty()) {
                 throw new IllegalArgumentException("base path override cannot be empty");
@@ -65,7 +70,7 @@ public class HashPlan {
                     .replace('\\', '/')
                     .replaceFirst("/*$", "/");
         } catch (final IOException e) {
-            throw new IOException("Could not resolve canonical path for [hash plan]'s parent: " + file, e);
+            throw new IOException("Could not resolve canonical path for [hash plan]'s parent: " + Format.file(file), e);
         }
     }
 
@@ -77,11 +82,16 @@ public class HashPlan {
                 if (pattern.isEmpty()) {
                     throw new IllegalArgumentException("blacklist pattern cannot be empty");
                 }
-                final String regex = Arrays.stream(pattern.split("\\*", -1))
-                        .map(Pattern::quote)
-                        .collect(Collectors.joining(".*"))
-                        .replace("\\Q\\E", "");
-                patterns.add(regex);
+
+                final StringBuilder sb = new StringBuilder();
+                for (final String part : pattern.split("\\*", -1)) {
+                    if (!part.isEmpty()) {
+                        sb.append(Pattern.quote(part));
+                    }
+                    sb.append(".*");
+                }
+                sb.setLength(sb.length() - 2);
+                patterns.add(sb.toString());
             }
         }
 
@@ -92,8 +102,7 @@ public class HashPlan {
             return null;
         } else {
             if (logger.isDebugEnabled()) {
-                logger.debug("Compiling blacklist patterns:\n" +
-                        String.join("\n", patterns));
+                logger.debug(Format.lines("Compiling blacklist patterns", patterns));
             }
             return Pattern.compile(String.join("|", patterns));
         }
@@ -102,53 +111,58 @@ public class HashPlan {
     private static List<String> extractWhitelist(final Logger logger, final String basePath, final List<String> lines) {
         final LinkedHashSet<String> whitelist = new LinkedHashSet<>();
         for (final String line : lines) {
+            final String entry;
             switch (line.charAt(0)) {
                 case '@':
                 case '!':
                 case '#':
                     continue; // control characters
                 case '\\':
-                    whitelist.add(line.substring(1));
+                    entry = line.substring(1);
                     break; // strip leading backslash to allow escaping control characters in filenames
                 default:
-                    whitelist.add(line);
+                    entry = line;
             }
-        }
 
-        final LinkedHashSet<String> dotPatch = new LinkedHashSet<>();
-        for (final String line : whitelist) {
-            switch (line) {
+            final String suffix;
+            switch (entry) {
                 case ".":
                     if (logger.isWarnEnabled()) {
                         logger.warn("Relative path '.' is a directory - please append a trailing / to this whitelist entry");
                     }
-                    dotPatch.add(basePath);
+                    suffix = "";
                     break; // falling through here freaks out linters
                 case "./":
-                    dotPatch.add(basePath);
+                    suffix = "";
                     break;
                 default:
-                    dotPatch.add(basePath + line);
+                    suffix = entry;
+            }
+            final boolean duplicate = !whitelist.add(basePath + suffix);
+            if (duplicate && logger.isWarnEnabled()) {
+                logger.warn("Whitelist entry '" + line + "' is a duplicate - please review the [hash plan]");
             }
         }
 
-        if (dotPatch.isEmpty()) {
+        if (whitelist.isEmpty()) {
             if (logger.isDebugEnabled()) {
                 logger.debug("No whitelist entries found, adding base path as default");
             }
-            dotPatch.add(basePath);
+            whitelist.add(basePath);
         }
-
-        return new ArrayList<>(dotPatch);
+        return new ArrayList<>(whitelist);
     }
 
     static HashPlan apply(final Logger logger, final File planParent, final String plan) throws IOException {
         // split on CR/LF and remove trailing whitespaces from each line
-        final List<String> lines = Arrays.stream(plan.split("[ \t]*([\r\n]+|$)"))
-                .filter(line -> !line.isEmpty()).collect(Collectors.toList());
+        final ArrayList<String> lines = new ArrayList<>();
+        for (final String line : plan.split("[ \t]*([\r\n]+|$)")) {
+            if (!line.isEmpty()) {
+                lines.add(line);
+            }
+        }
         if (logger.isTraceEnabled()) {
-            logger.trace("Read hash plan:\n" +
-                    String.join("\n", lines));
+            logger.trace(Format.lines("Read hash plan", lines));
         }
 
         final String basePath = resolveBasePath(logger, planParent, lines);
@@ -174,7 +188,7 @@ public class HashPlan {
         try {
             canoPlan = plan.getCanonicalFile();
         } catch (final IOException e) {
-            throw new IOException("Could not resolve canonical path for [hash plan]: " + plan, e);
+            throw new IOException("Could not resolve canonical path for [hash plan]: " + Format.file(plan), e);
         }
         if (canoPlan.isDirectory()) {
             if (logger.isDebugEnabled()) {
@@ -185,7 +199,7 @@ public class HashPlan {
         final File planParent = canoPlan.getParentFile();
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Reading hash plan: '" + canoPlan + "' ...");
+            logger.debug("Reading hash plan: " + Format.file(canoPlan) + " ...");
         }
         final byte[] planBytes = Files.readAllBytes(canoPlan.toPath());
         return apply(logger, planParent, planBytes);

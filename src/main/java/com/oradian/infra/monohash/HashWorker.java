@@ -1,5 +1,7 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.util.Format;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -8,7 +10,7 @@ import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
 import java.util.concurrent.atomic.LongAdder;
 
-public class HashWorker {
+public final class HashWorker {
     /** Default size was benched across different workloads.
       * There are consistent, but marginal differences for 16KiB, 32KiB, 128KiB (~0.5% slower)
       * This may become configurable in the future, but it's overkill for now. */
@@ -34,10 +36,6 @@ public class HashWorker {
 
     /** Not thread safe, reuses buffer and digest */
     public byte[] hashFile(final File file) throws IOException {
-        if (logger.isTraceEnabled()) {
-            logger.trace("Starting hash of '" + file + "' ...");
-        }
-
         final long startAt = System.nanoTime();
         try (final RandomAccessFile raf = new RandomAccessFile(file, "r");
              final FileChannel fc = raf.getChannel()) {
@@ -55,8 +53,7 @@ public class HashWorker {
             }
             final byte[] result = md.digest();
             if (logger.isTraceEnabled()) {
-                final long endAt = System.nanoTime();
-                logger.trace(String.format("Hashed file '%s': %s (in %1.3f ms)", file, Hex.toHex(result), (endAt - startAt) / 1e6));
+                logger.trace("Hashed file " + Format.file(file) + ": " + Format.hex(result) + Format.timeNanos(startAt));
             }
             return result;
         }

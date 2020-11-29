@@ -4,7 +4,7 @@ import com.oradian.infra.monohash.Logger;
 
 import java.io.PrintStream;
 
-public class PrintStreamLogger implements Logger {
+public final class PrintStreamLogger implements Logger {
     private final PrintStream printStream;
     private final Level level;
 

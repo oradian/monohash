@@ -1,8 +1,9 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.util.Format;
+
 import java.io.File;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -12,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.regex.Pattern;
 
-class WhiteWalker {
+final class WhiteWalker {
     private final Logger logger;
     private final Algorithm algorithm;
     private final HashPlan hashPlan;
@@ -61,7 +62,7 @@ class WhiteWalker {
 
     private static final byte[] EMPTY = new byte[0];
 
-    private void processWorkInQueue(final Logger logger, final String workerId) throws NoSuchAlgorithmException, IOException {
+    private void processWorkInQueue(final Logger logger, final String workerId) throws IOException {
         if (logger.isTraceEnabled()) {
             logger.trace("Started worker " + workerId + " ...");
         }
@@ -86,7 +87,7 @@ class WhiteWalker {
             if (file == null) {
                 if (currentlyProcessing.longValue() == 0) {
                     if (logger.isTraceEnabled()) {
-                        logger.trace(workerId + " is finished!");
+                        logger.trace(workerId + " is finished");
                     }
                     return;
                 }
@@ -103,7 +104,7 @@ class WhiteWalker {
                 if (file.isDirectory()) {
                     final File[] children = file.listFiles();
                     if (children == null) {
-                        throw new IOException("Could not list children for path: " + file);
+                        throw new IOException("Could not list children for path: " + Format.dir(file));
                     }
                     synchronized (workQueue) {
                         workQueue.addAll(Arrays.asList(children));
@@ -141,22 +142,20 @@ class WhiteWalker {
                 if (!finished || filesCount != lastFiles) {
                     lastFiles = filesCount;
                     if (logger.isInfoEnabled()) {
-                        final long sizeCount = bytesHashed.longValue();
+                        final long bytesHashed = this.bytesHashed.longValue();
                         final long tookMs = System.currentTimeMillis() - startAt;
                         msAdjustment += tookMs - LOGGING_INTERVAL_MS - lastTookMs;
                         lastTookMs = tookMs;
-                        final double seconds = tookMs / 1e3;
-                        final int filesSpeed = seconds > 0.0 ? (int) (filesCount / seconds) : 0;
-                        final double sizeSpeed = seconds > 0.0 ? sizeCount / (double) (1 << 20) / seconds : 0.0;
+                        final float seconds = tookMs / 1e3f;
+                        final int filesSpeed = seconds > 0.0f ? (int) (filesCount / seconds) : 0;
+                        final int hashingSpeed = seconds > 0.0f ? (int) (bytesHashed / seconds / (1 << 20)) : 0;
                         final String errorNotice = workerError.get() == null ? "" : " [stopping early due to errors]";
-                        logger.info(String.format(
-                                "Hashed %s files with a total of %s bytes in %1.3f sec (average speed: %s files/sec, %1.1f MB/sec)%s",
-                                MonoHash.nf(filesCount),
-                                MonoHash.nf(sizeCount),
-                                seconds,
-                                MonoHash.nf(filesSpeed),
-                                sizeSpeed,
-                                errorNotice));
+                        logger.info("Hashed " + Format.i(filesCount) +
+                                " files with a total of " + Format.i(bytesHashed) +
+                                " bytes in " + Format.f(seconds) +
+                                " sec (average speed: " + Format.i(filesSpeed) +
+                                " files/sec, " + Format.i(hashingSpeed) +
+                                " MiB/sec)" + errorNotice);
                     }
                 }
             } catch (final InterruptedException e) {
@@ -180,7 +179,8 @@ class WhiteWalker {
         final String alternativePath = relativePath.substring(0, relativePath.length() - 1);
         final boolean alterResult = !blacklist.matcher(alternativePath).matches();
         if (!alterResult && logger.isWarnEnabled()) {
-            logger.warn("Relative path '" + alternativePath + "' is a directory - please append a trailing / to this blacklist pattern");
+            logger.warn("Relative path '" + alternativePath +
+                    "' is a directory - please append a trailing / to this blacklist pattern");
         }
         return alterResult;
     }
@@ -202,7 +202,8 @@ class WhiteWalker {
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
             if (file.isDirectory() && !relativePath.endsWith("/") && logger.isWarnEnabled()) {
-                logger.warn("Relative path '" + relativePath + "' is a directory - please append a trailing / in the [hash plan]");
+                logger.warn("Relative path '" + relativePath +
+                        "' is a directory - please append a trailing / in the [hash plan]");
             }
             workQueue.add(file);
         }
@@ -232,9 +233,7 @@ class WhiteWalker {
         for (final Thread worker : workers) {
             worker.start();
         }
-
         ww.logUntilFinished();
-
         for (final Thread worker : workers) {
             try {
                 worker.join();
@@ -242,14 +241,13 @@ class WhiteWalker {
                 throw new IOException(e);
             }
         }
-
         if (workerError.get() != null) {
             throw workerError.get();
         }
 
         // sort the entries by their relative paths
         // also filter out the directories or the blacklisted entries which retained the empty byte array marker
-        final SortedMap<String, byte[]> sortedDigests = new TreeMap<>();
+        final TreeMap<String, byte[]> sortedDigests = new TreeMap<>();
         for (final Map.Entry<String, byte[]> pathHashes : ww.pathHashes.entrySet()) {
             final byte[] hash = pathHashes.getValue();
             if (hash != EMPTY) {

@@ -3,6 +3,8 @@ package com.oradian.infra.monohash
 import java.nio.file.Files
 import java.security.MessageDigest
 
+import com.oradian.infra.monohash.util.Hex
+
 class HashResultsSpec extends Specification {
   private[this] val logger: LoggingLogger = new LoggingLogger()
   private[this] val algorithm = new Algorithm("SHA-1")

@@ -1,5 +1,8 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.util.Format;
+import com.oradian.infra.monohash.util.Hex;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,7 +13,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.*;
 
-public class HashResults {
+public final class HashResults {
     private final Logger logger;
     public final Algorithm algorithm;
     private final byte[] lines;
@@ -29,15 +32,11 @@ public class HashResults {
     private byte[] hashCache;
     public byte[] hash() {
         if (hashCache == null) {
-            if (logger.isTraceEnabled()) {
-                logger.trace("Calculating total hash ...");
-            }
             final long startAt = System.nanoTime();
             final MessageDigest md = algorithm.init(lines.length);
             hashCache = md.digest(lines);
             if (logger.isTraceEnabled()) {
-                final long endAt = System.nanoTime();
-                logger.trace(String.format("Calculated total hash '%s' (in %1.3f ms)", Hex.toHex(hashCache), (endAt - startAt) / 1e6));
+                logger.trace("Calculated total hash: " + Format.hex(hashCache) + Format.timeNanos(startAt));
             }
         }
         return hashCache.clone();
@@ -80,8 +79,7 @@ public class HashResults {
         final long startAt = System.nanoTime();
         Files.write(outFile.toPath(), lines);
         if (logger.isTraceEnabled()) {
-            final long endAt = System.nanoTime();
-            logger.trace(String.format("Wrote to [export file] '%s' (in %1.3f ms)", outFile, (endAt - startAt) / 1e6));
+            logger.trace("Wrote to [export file]: " + Format.file(outFile) + Format.timeNanos(startAt));
         }
     }
 

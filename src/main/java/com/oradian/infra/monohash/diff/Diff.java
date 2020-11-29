@@ -2,7 +2,7 @@ package com.oradian.infra.monohash.diff;
 
 import java.util.*;
 
-public class Diff {
+public final class Diff {
     public final List<Add> adds;
     public final List<Rename> renames;
     public final List<Modify> modifies;
@@ -67,8 +67,8 @@ public class Diff {
         // defensive copy so that we don't exhaust the src collection
         final LinkedHashMap<String, byte[]> srcCopy = new LinkedHashMap<>(src);
 
-        final Map<ArrKey, List<AddRename>> addRenames = new LinkedHashMap<>();
-        final List<Modify> modifies = new ArrayList<>();
+        final LinkedHashMap<ArrKey, List<AddRename>> addRenames = new LinkedHashMap<>();
+        final ArrayList<Modify> modifies = new ArrayList<>();
         for (final Map.Entry<String, byte[]> dstEntry : dst.entrySet()) {
             final String dstPath = dstEntry.getKey();
             final byte[] dstHash = dstEntry.getValue();
@@ -76,13 +76,14 @@ public class Diff {
             final byte[] srcHash = srcCopy.remove(dstPath);
             if (srcHash == null) {
                 final ArrKey reverseKey = new ArrKey(dstHash);
-                addRenames.computeIfAbsent(reverseKey, unused -> new ArrayList<>()).add(new AddRename(dstPath, dstHash));
+                addRenames.computeIfAbsent(reverseKey, unused -> new ArrayList<>())
+                        .add(new AddRename(dstPath, dstHash));
             } else if (!Arrays.equals(dstHash, srcHash)) {
                 modifies.add(new Modify(dstPath, srcHash, dstHash));
             }
         }
 
-        final List<Delete> deletes = new ArrayList<>();
+        final ArrayList<Delete> deletes = new ArrayList<>();
         for (final Map.Entry<String, byte[]> srcEntry : srcCopy.entrySet()) {
             final String srcPath = srcEntry.getKey();
             final byte[] srcHash = srcEntry.getValue();
@@ -92,15 +93,17 @@ public class Diff {
             if (adds == null) {
                 deletes.add(new Delete(srcPath, srcHash));
             } else {
-                adds.stream()
-                        .filter(entry -> entry.srcPath == null)
-                        .limit(1)
-                        .forEach(entry -> entry.srcPath = srcPath);
+                for (final AddRename addRename : adds) {
+                    if (addRename.srcPath == null) {
+                        addRename.srcPath = srcPath;
+                        break;
+                    }
+                }
             }
         }
 
-        final List<Add> adds = new ArrayList<>();
-        final List<Rename> renames = new ArrayList<>();
+        final ArrayList<Add> adds = new ArrayList<>();
+        final ArrayList<Rename> renames = new ArrayList<>();
         for (final List<AddRename> ars : addRenames.values()) {
             for (final AddRename ar : ars) {
                 if (ar.srcPath == null) {
@@ -149,7 +152,6 @@ public class Diff {
             }
             sb.append('\n');
         }
-
         return sb.toString();
     }
 }

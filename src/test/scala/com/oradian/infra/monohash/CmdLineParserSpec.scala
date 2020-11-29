@@ -52,12 +52,12 @@ class CmdLineParserSpec extends Specification {
       _.exportPath ==== null,
     )(
       _.messages() ==== Seq(
-        LogMsg(Logger.Level.DEBUG, s"Parsing arguments:\n$fakePlan"),
+        LogMsg(Logger.Level.DEBUG, s"Parsing arguments:\n  $fakePlan"),
         LogMsg(Logger.Level.DEBUG, s"Using log level: info"),
         LogMsg(Logger.Level.DEBUG, s"Using algorithm: SHA-1"),
         LogMsg(Logger.Level.DEBUG, s"Using concurrency: " + CmdLineParser.getCurrentDefaultConcurrency),
         LogMsg(Logger.Level.DEBUG, s"Using verification: off"),
-        LogMsg(Logger.Level.TRACE, s"Remaining arguments after processing additional options:\n$fakePlan")
+        LogMsg(Logger.Level.TRACE, s"Remaining arguments after processing additional options:\n  $fakePlan")
       )
     )
   }
