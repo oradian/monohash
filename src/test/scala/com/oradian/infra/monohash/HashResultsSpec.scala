@@ -1,6 +1,5 @@
 package com.oradian.infra.monohash
 
-import java.io.{ByteArrayOutputStream, File}
 import java.nio.file.Files
 import java.security.MessageDigest
 
@@ -21,25 +20,24 @@ class HashResultsSpec extends Specification {
   )
 
   "Save / load roundtrip test" >> {
-    val hashResults = genRandomHashResults()
-    val roundtripFile = File.createTempFile("hashResults-", "." + algorithm.name)
-    hashResults.export(roundtripFile)
-    val lines = Files.readAllBytes(roundtripFile.toPath)
-    val hashResultsFromFile = HashResults.apply(logger, algorithm, lines)
+    inWorkspace { ws =>
+      val hashResults = genRandomHashResults()
+      val roundtripFile = new File(ws + "export.bin")
+      hashResults.export(roundtripFile)
+      val lines = Files.readAllBytes(roundtripFile.toPath)
+      val hashResultsFromFile = HashResults.apply(logger, algorithm, lines)
 
-    hashResults.size ==== hashResultsFromFile.size
-    val ldf = hashResults.toMap.asScala
-    val rdf = hashResultsFromFile.toMap.asScala
-    val res = ldf forall { case (lf, ld) =>
-      rdf(lf) ==== ld
+      hashResults.size ==== hashResultsFromFile.size
+      val ldf = hashResults.toMap.asScala
+      val rdf = hashResultsFromFile.toMap.asScala
+      ldf forall { case (lf, ld) =>
+        rdf(lf) ==== ld
+      }
+
+      val bytes = Files.readAllBytes(roundtripFile.toPath)
+      val md = algorithm.init(() => ???)
+      md.digest(bytes) ==== hashResults.hash()
     }
-
-    val bytes = Files.readAllBytes(roundtripFile.toPath)
-    val md = algorithm.init(() => ???)
-    md.digest(bytes) ==== hashResults.hash()
-
-    roundtripFile.delete()
-    res
   }
 
   private[this] def test(actual: HashResults, expected: Seq[(String, Array[Byte])]): MatchResult[_] =
@@ -119,14 +117,12 @@ ${Hex.toHex(hash2)}XgarbageX
 
     "Malformed UTF-8 in path" >> {
       val hash = algorithm.init(() => ???).digest()
-      val lines = {
-        val baos = new ByteArrayOutputStream()
-        baos.write(Hex.toHex(hash).getBytes(UTF_8))
-        baos.write(' ')
-        baos.write("£3.50".getBytes(ISO_8859_1)) // £ is \u00A3 and encodes as 0xA3 in ISO-8859-1 (1:1)
-        baos.write('\n')                         // this will break the UTF-8 decoder which requires each high-bit
-        baos.toByteArray                         // character to be preceded by another (i.e. 0xC2 0xA3)
-      }
+      val lines = (
+        Hex.toHex(hash).getBytes(UTF_8)
+        :+ (' ': Byte)
+        :++ "£3.50".getBytes(ISO_8859_1) // £ is \u00A3 and encodes as 0xA3 in ISO-8859-1 (1:1)
+        :+ ('\n': Byte)                  // this will break the UTF-8 decoder which requires each high-bit
+      )                                  // character to be preceded by another (i.e. 0xC2 0xA3)
 
       val hr = HashResults.apply(logger, algorithm, lines)
       hr.size() ==== 1

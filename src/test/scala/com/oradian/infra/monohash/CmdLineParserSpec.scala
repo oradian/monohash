@@ -1,23 +1,18 @@
 package com.oradian.infra.monohash
 
-import java.security.Security
-import java.util.UUID
-
-import org.specs2.execute.Result
-
 class CmdLineParserSpec extends Specification {
   sequential
 
   private[this] def testPL(args: String*)
                           (parseChk: (CmdLineParser => MatchResult[_])*)
-                          (logChk: (LoggingLogger => MatchResult[_])*): Result = {
+                          (logChk: (LoggingLogger => MatchResult[_])*): Seq[MatchResult[_]] = {
     val logger = new LoggingLogger
     val parser = new CmdLineParser(args.toArray, _ => logger)
     parseChk.map(_.apply(parser))
     logChk.map(_.apply(logger))
   }
 
-  private[this] def test(args: String*)(parseChk: (CmdLineParser => MatchResult[_])*): Result =
+  private[this] def test(args: String*)(parseChk: (CmdLineParser => MatchResult[_])*): Seq[MatchResult[_]] =
     testPL(args: _*)(parseChk: _*)()
 
   "Empty argument handling" >> {
@@ -32,8 +27,8 @@ class CmdLineParserSpec extends Specification {
     }
   }
 
-  private[this] val fakePlan = UUID.randomUUID().toString
-  private[this] val fakeExport = UUID.randomUUID().toString
+  private[this] val fakePlan = java.util.UUID.randomUUID().toString
+  private[this] val fakeExport = java.util.UUID.randomUUID().toString
 
   "Simple hash plan" >> {
     test(fakePlan)(
@@ -181,6 +176,7 @@ class CmdLineParserSpec extends Specification {
   }
 
   "No algorithms check" >> {
+    import java.security.Security
     val providers = Security.getProviders()
     try {
       for (provider <- providers) {

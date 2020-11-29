@@ -1,31 +1,25 @@
 package com.oradian.infra.monohash
 package impl
 
-import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.Locale
 
 class PrintStreamLoggerSpec extends Specification {
   "Cross product of level and logging works" >> {
     for (level <- Logger.Level.values.toSeq) yield {
-      val baos = new ByteArrayOutputStream()
-      val testStream = new PrintStream(baos)
-      testStream.println("<init>")
-
-      val logger = new PrintStreamLogger(testStream, level)
-      spam(logger)
-
-      val logLines = new String(baos.toByteArray, UTF_8).split(PrintStreamLogger.NL)
+      val logLines = withPS { testStream =>
+        testStream.println("<init>")
+        val logger = new PrintStreamLogger(testStream, level)
+        spam(logger)
+      }._2.split(PrintStreamLogger.NL)
       logLines must have size level.ordinal + 1 // 1 is for "<init>", need it for the NL split
     }
   }
 
-  private[this] def withLogger(f: PrintStreamLogger => Any): String = {
-    val baos = new ByteArrayOutputStream()
-    val testStream = new PrintStream(baos)
-    val logger = new PrintStreamLogger(testStream, Logger.Level.TRACE)
-    f(logger)
-    new String(baos.toByteArray, UTF_8)
-  }
+  private[this] def withLogger(f: PrintStreamLogger => Any): String =
+    withPS { testStream =>
+      val logger = new PrintStreamLogger(testStream, Logger.Level.TRACE)
+      f(logger)
+    }._2
 
   private[this] implicit class NewlineEqualiser(private val underlying: String) {
     def ==~==(expected: String): MatchResult[String] =

@@ -6,8 +6,6 @@ import java.util.concurrent.atomic.LongAdder
 
 import org.specs2.specification.core.Fragments
 
-import scala.util.Random
-
 class AlgorithmSpec extends Specification {
   private[this] val seed = Random.nextLong()
 

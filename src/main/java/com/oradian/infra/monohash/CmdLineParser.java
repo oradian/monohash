@@ -8,7 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 class CmdLineParser {
     private static final String STOP_PARSING_FLAG = "--";

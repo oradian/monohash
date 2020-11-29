@@ -157,8 +157,10 @@ public class MonoHash {
         try {
             final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, concurrency);
             if (logger.isInfoEnabled()) {
+                final String hexHash = Hex.toHex(hashResults.hash());
                 final long executeEndAt = System.currentTimeMillis();
-                logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec", nf(hashResults.size()), (executeEndAt - executeStartAt) / 1e3));
+                logger.info(String.format("Executed hash plan by hashing %s files in %1.3f sec: %s",
+                        nf(hashResults.size()), (executeEndAt - executeStartAt) / 1e3, hexHash));
             }
             return hashResults;
         } catch (final Exception e) {

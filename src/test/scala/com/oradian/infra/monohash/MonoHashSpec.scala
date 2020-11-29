@@ -1,21 +1,11 @@
 package com.oradian.infra.monohash
 
-import java.io.{ByteArrayOutputStream, PrintStream, RandomAccessFile}
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
 import com.oradian.infra.monohash.impl.PrintStreamLogger
-import org.specs2.execute.{AsResult, Result}
 
 class MonoHashSpec extends Specification {
-  private[this] def withPS[T](f: PrintStream => T): (T, String) = {
-    val baos = new ByteArrayOutputStream()
-    val ps = new PrintStream(baos, true, UTF_8.name)
-    val res = f(ps)
-    val str = new String(baos.toByteArray, UTF_8)
-    (res, str)
-  }
-
   private[this] def systemTest(args: String*): ((Int, String), String) =
     withPS { err =>
       withPS { out =>
@@ -129,48 +119,24 @@ class MonoHashSpec extends Specification {
     }
   }
 
-  private[this] def withLock[T](path: String)(f: => T): T = {
-    val raf = new RandomAccessFile(path, "rw")
-    try {
-      val fc = raf.getChannel
-      try {
-        val lock = fc.lock()
-        try {
-          f
-        } finally {
-          lock.release()
-        }
-      } finally {
-        fc.close()
-      }
-    } finally {
-      raf.close()
-    }
-  }
-
-  def ifWin[R : AsResult](r: => R): Result =
-    if (scala.util.Properties.isWin) {
-      AsResult(r)
-    } else {
-      pending("<test requires Windows>")
-    }
-
   "I/O error handling" >> {
-    "Cannot read hash plan" >> ifWin {
+    "Cannot read hash plan" >> {
       val ((exitCode, out), err) = inWorkspace { ws =>
         val plan = ws + "plan"
-        withLock(plan) {
+        new File(plan).createNewFile()
+        forbid(plan) {
           systemTest(plan)
         }
       }
       exitCode ==== ExitException.HASH_PLAN_CANNOT_READ
     }
 
-    "Cannot read export file" >> ifWin {
+    "Cannot read export file" >> {
       val ((exitCode, out), err) = inWorkspace { source =>
         inWorkspace { ws =>
           val export = ws + "export.txt"
-          withLock(export) {
+          new File(export).createNewFile()
+          forbid(export) {
             systemTest("-vrequire", source, export)
           }
         }
@@ -178,23 +144,27 @@ class MonoHashSpec extends Specification {
       exitCode ==== ExitException.EXPORT_FILE_REQUIRED_BUT_CANNOT_READ
     }
 
-    "Cannot write export file" >> ifWin {
+    "Cannot write export file" >> {
       val ((exitCode, out), err) = inWorkspace { source =>
-        // On Windows, if we try to write an empty file over a file that is currently
-        // locked using the RandomAccessFile("rw")'s FileChannel.lock it will succeed!
-        // This is why we'll create "something" in source dir so that the export file is not empty,
-        // otherwise the process would happily truncate the export file and exit successfully
-        // Linux doesn't support anything similar, as the flock is completely advisory there
-        // TODO: figure out a better way to crash MonoHash in tests ...
         new File(source + "something").createNewFile()
         inWorkspace { ws =>
           val export = ws + "export.txt"
-          withLock(export) {
+          new File(export).createNewFile()
+          forbid(export) {
             systemTest("-vwarn", source, export)
           }
         }
       }
       exitCode ==== ExitException.EXPORT_FILE_CANNOT_WRITE
+    }
+    "Cannot list whitelist directory" >> {
+      val ((exitCode, out), err) = inWorkspace { ws =>
+        forbid(ws) {
+          systemTest("-vwarn", ws)
+        }
+      }
+      exitCode ==== ExitException.MONOHASH_EXECUTION_ERROR
+      err must contain("java.io.IOException: Could not list children for path: ")
     }
   }
 
@@ -209,5 +179,44 @@ class MonoHashSpec extends Specification {
       new MonoHash(logger).run(new File(resources), new File("\u0000"), null, 0, null) must
         throwAn[ExitException]("Could not resolve canonical path of \\[export file\\]: \u0000")
     }
+  }
+
+  "MonoHash.main() entry point system test" >> {
+    withPS { err =>
+      val oldErr = System.err
+      System.setErr(err)
+      try {
+
+        withPS { out =>
+          val oldOut = System.out
+          System.setOut(out)
+          try {
+
+            val old = System.getSecurityManager
+            System.setSecurityManager(new SecurityManager {
+              override def checkExit(exitCode: Int): Unit = throw new ExitException("main-check", exitCode)
+
+              override def checkPermission(perm: java.security.Permission): Unit = ()
+            })
+
+            try {
+              MonoHash.main(Array()) ==== ()
+            } catch {
+              case e: ExitException =>
+                e.exitCode ==== 2000
+                e.getMessage ==== "main-check"
+            } finally {
+              System.setSecurityManager(old)
+            }
+
+          } finally {
+            System.setOut(oldOut)
+          }
+        }._2 ==== "" // out
+
+      } finally {
+        System.setErr(oldErr)
+      }
+    }._2 must contain("You did not specify the [hash plan file]") // err
   }
 }
