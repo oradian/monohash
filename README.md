@@ -1,4 +1,5 @@
 # MonoHash
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/7241401b9227472a9701656d44ad9539)](https://app.codacy.com/gh/oradian/monohash?utm_source=github.com&utm_medium=referral&utm_content=oradian/monohash&utm_campaign=Badge_Grade_Settings)
 [![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=develop)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
