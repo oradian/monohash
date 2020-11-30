@@ -1,9 +1,9 @@
 # MonoHash
-[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=develop)](https://travis-ci.org/oradian/monohash)
+[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=master)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
-[![Codecov](https://codecov.io/gh/oradian/monohash/branch/develop/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
+[![Codecov](https://codecov.io/gh/oradian/monohash/branch/master/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring
@@ -33,7 +33,7 @@ MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on 
 [info] compiling 20 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 2 s, completed Nov 30, 2020 12:39:43 AM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.0-SNAPSHOT.jar ~/linux-5.10-rc5/
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.0.jar ~/linux-5.10-rc5/
 [info] Using [hash plan directory]: '/home/melezov/linux-5.10-rc5/' ...
 [info] Hashed 74,822 files with a total of 989,045,424 bytes in 0.792 sec (average speed: 94,472 files/sec, 1,190 MiB/sec)
 [info] Executed hash plan by hashing 74,822 files [9be032657c49009add50c4fbccd1d6bffaa4d593] (in 0.917 sec)
@@ -133,24 +133,24 @@ Maven:
 <dependency>
   <groupId>com.oradian.infra</groupId>
   <artifactId>monohash</artifactId>
-  <version>0.7.0</version>
+  <version>0.8.0</version>
 </dependency>
 ```
 
 Ivy:
 ```
-<dependency org="com.oradian.infra" name="monohash" rev="0.7.0"/>
+<dependency org="com.oradian.infra" name="monohash" rev="0.8.0"/>
 ```
 
 SBT:
 ```
-libraryDependencies += "com.oradian.infra" % "monohash" % "0.7.0"
+libraryDependencies += "com.oradian.infra" % "monohash" % "0.8.0"
 ```
 
 ### Command-line usage:
 
 If you don't care about programmatic (library) access, you can simply
-[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.7.0/monohash-0.7.0.jar)
+[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.8.0/monohash-0.8.0.jar)
 and use it on the command line.
 
 Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:

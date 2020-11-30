@@ -1,6 +1,6 @@
 organization := "com.oradian.infra"
 name := "monohash"
-version := "0.8.0-SNAPSHOT"
+version := "0.8.0"
 
 libraryDependencies ++= Seq(
   "org.specs2" %% "specs2-core" % "4.10.5" % Test,
