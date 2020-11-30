@@ -1,9 +1,9 @@
 # MonoHash
-[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=master)](https://travis-ci.org/oradian/monohash)
+[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=develop)](https://travis-ci.org/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
-[![Codecov](https://codecov.io/gh/oradian/monohash/branch/master/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
+[![Codecov](https://codecov.io/gh/oradian/monohash/branch/develop/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring
@@ -33,7 +33,7 @@ MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on 
 [info] compiling 20 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 2 s, completed Nov 30, 2020 12:39:43 AM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.0.jar ~/linux-5.10-rc5/
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.1-SNAPSHOT.jar ~/linux-5.10-rc5/
 [info] Using [hash plan directory]: '/home/melezov/linux-5.10-rc5/' ...
 [info] Hashed 74,822 files with a total of 989,045,424 bytes in 0.792 sec (average speed: 94,472 files/sec, 1,190 MiB/sec)
 [info] Executed hash plan by hashing 74,822 files [9be032657c49009add50c4fbccd1d6bffaa4d593] (in 0.917 sec)
@@ -116,7 +116,7 @@ Everything in `.monohash` hash plans is optional, following convention over conf
 A completely empty `.monohash` file simply includes all files in the folder of that hash plan.
 
 There is a comprehensive set of tests and `.monohash` examples in the
-[oradian/monohash repository](https://github.com/oradian/monohash/tree/master/src/test/resources) which can be observed
+[oradian/monohash repository](https://github.com/oradian/monohash/tree/develop/src/test/resources) which can be observed
 for education purposes.
 
 MonoHash is written in pure Java with *no external dependencies* so its binary payload is tiny (~45kb).
