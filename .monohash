@@ -1,7 +1,14 @@
 !.git/
-!.idea/
-!*target/
-
 !.gitignore
+
+# Exclude docs
 !LICENSE
 !README.md
+
+# Exclude benchmark subproject
+!benchmark/
+
+# Exclude compilation artifacts
+!.idea/
+!.bsp/
+!*target/

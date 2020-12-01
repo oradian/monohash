@@ -1,5 +1,5 @@
 # MonoHash
-[![Build Status](https://travis-ci.org/oradian/monohash.svg?branch=develop)](https://travis-ci.org/oradian/monohash)
+[![Build Status](https://travis-ci.com/oradian/monohash.svg?branch=develop)](https://travis-ci.com/oradian/monohash)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
@@ -28,7 +28,7 @@ MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on 
 [Hetzner's PX line](https://www.hetzner.com/dedicated-rootserver/px62-nvme):
 ```
 [melezov@ci-01 monohash]$ sbt package
-[info] welcome to sbt 1.4.3 (AdoptOpenJDK Java 1.8.0_272)
+[info] welcome to sbt 1.4.4 (AdoptOpenJDK Java 1.8.0_272)
 [info] set current project to monohash (in build file:/home/melezov/monohash/)
 [info] compiling 20 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 2 s, completed Nov 30, 2020 12:39:43 AM
@@ -211,7 +211,7 @@ algorithms such as `MD5`, or heavier stuff such as `SHA3-512`. Probably overkill
 The supported algorithms are gathered by querying registered security providers, i.e. they will depend on the JRE
 version that's running MonoHash and if you have loaded external providers such as
 [Bouncy Castle](https://www.bouncycastle.org/).  
-  An additional synthetic algorithm `Git` is made available by MonoHash. It depends on `SHA-1` and allows you to use
+  An additional synthetic algorithm `GIT` is made available by MonoHash. It depends on `SHA-1` and allows you to use
   hashing compatible with [Git's object IDs](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) - i.e. it first
   processes the `"blob ${length}\0"` prefix and then proceeds with hashing the rest of the file.
 

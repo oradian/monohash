@@ -119,7 +119,7 @@ public final class Algorithm {
         final TreeMap<String, SortedSet<String>> result = new TreeMap<>();
         for (final SortedSet<String> group : new HashSet<>(cache.values())) { // HashSet to dedup values
             final String key = voteForName(algorithms, group);
-            group.remove(key); // separate voted key from aliasPairs
+            group.remove(key); // separate voted key from rest of aliases
             result.put(key, group);
         }
         return result;
