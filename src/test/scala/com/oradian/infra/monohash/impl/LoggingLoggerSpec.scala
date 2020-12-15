@@ -1,13 +1,15 @@
 package com.oradian.infra.monohash
 package impl
 
+import com.oradian.infra.monohash.param.LogLevel
+
 class LoggingLoggerSpec extends Specification {
   "Filtering and reporting works" >> {
     val logger = new LoggingLogger
     spam(logger)
 
     logger.messages() must have size 5
-    for (level <- Logger.Level.values.toSeq) yield {
+    for (level <- LogLevel.values.toSeq) yield {
       logger.messages(level) must have size level.ordinal
     }
   }

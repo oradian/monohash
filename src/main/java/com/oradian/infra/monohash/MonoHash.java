@@ -2,6 +2,7 @@ package com.oradian.infra.monohash;
 
 import com.oradian.infra.monohash.diff.Diff;
 import com.oradian.infra.monohash.impl.PrintStreamLogger;
+import com.oradian.infra.monohash.param.*;
 import com.oradian.infra.monohash.util.Format;
 import com.oradian.infra.monohash.util.Hex;
 
@@ -9,8 +10,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Function;
 
 public final class MonoHash {
     public static void main(final String[] args) {
@@ -20,8 +23,8 @@ public final class MonoHash {
 
     static int main(final String[] args, final PrintStream out, final PrintStream err) {
         try {
-            final CmdLineParser parser = new CmdLineParser(args, logLevel -> new PrintStreamLogger(err, logLevel));
-            final byte[] hash = new MonoHash(parser.logger).run(parser).hash();
+            final Function<LogLevel, Logger> loggerFactory = logLevel -> new PrintStreamLogger(err, logLevel);
+            final byte[] hash = CmdLineParser.parse(Arrays.asList(args), loggerFactory).run().hash();
             out.println(Hex.toHex(hash));
             return ExitException.SUCCESS;
         } catch (final ExitException e) {
@@ -37,36 +40,33 @@ public final class MonoHash {
         }
     }
 
-    private final Logger logger;
+    private MonoHash() {}
 
-    public MonoHash(final Logger logger) {
-        this.logger = logger;
+    public static MonoHashBuilder withLogger(final Logger logger) {
+        return MonoHashBuilder.DEFAULT.withLogger(logger);
     }
 
-    public HashResults run(final CmdLineParser parser) throws Exception {
-        final String hashPlanPath = parser.hashPlanPath.replaceFirst("[\\\\/]+$", "");
-        final File hashPlanFile = new File(hashPlanPath);
-        if (hashPlanFile.isFile() && !hashPlanPath.equals(parser.hashPlanPath)) {
-            throw new ExitException("The [hash plan file] must not end with a slash: '" + parser.hashPlanPath + '\'',
-                    ExitException.HASH_PLAN_FILE_ENDS_WITH_SLASH);
-        }
-
-        final File exportFile;
-        if (parser.exportPath != null) {
-            final String exportPath = parser.exportPath.replaceFirst("[\\\\/]+$", "");
-            if (!exportPath.equals(parser.exportPath)) {
-                throw new ExitException("The [export file] must not end with a slash: '" + parser.exportPath + '\'',
-                        ExitException.EXPORT_FILE_ENDS_WITH_SLASH);
-            }
-            exportFile = new File(parser.exportPath);
-        } else {
-            exportFile = null;
-        }
-
-        return run(hashPlanFile, exportFile, parser.algorithm, parser.concurrency, parser.verification);
+    public static MonoHashBuilder withAlgorithm(final Algorithm algorithm) {
+        return MonoHashBuilder.DEFAULT.withAlgorithm(algorithm);
     }
 
-    private File resolvePlanFile(final File hashPlan) throws ExitException {
+    public static MonoHashBuilder withConcurrency(final Concurrency concurrency) {
+        return MonoHashBuilder.DEFAULT.withConcurrency(concurrency);
+    }
+
+    public static MonoHashBuilder withVerification(final Verification verification) {
+        return MonoHashBuilder.DEFAULT.withVerification(verification);
+    }
+
+    public static MonoHashBuilder.Ready withHashPlan(final File hashPlan) {
+        return MonoHashBuilder.DEFAULT.withHashPlan(hashPlan);
+    }
+
+    public static MonoHashBuilder withExport(final File export) {
+        return MonoHashBuilder.DEFAULT.withExport(export);
+    }
+
+    private static File resolvePlanFile(final Logger logger, final File hashPlan) throws ExitException {
         final File planFile;
         try {
             planFile = hashPlan.getCanonicalFile();
@@ -88,7 +88,7 @@ public final class MonoHash {
         return planFile;
     }
 
-    private File resolveExportFile(final File export, final Verification verification) throws ExitException {
+    private static File resolveExportFile(final Logger logger, final File export, final Verification verification) throws ExitException {
         if (export == null) {
             if (verification == Verification.REQUIRE) {
                 throw new ExitException("[verification] is set to 'require', but [export file] was not provided",
@@ -111,7 +111,7 @@ public final class MonoHash {
         }
     }
 
-    private HashResults readPreviousExport(final File exportFile, final Algorithm algorithm, final Verification verification) throws ExitException {
+    private static HashResults readPreviousExport(final Logger logger, final File exportFile, final Algorithm algorithm, final Verification verification) throws ExitException {
         if (exportFile == null) {
             return null;
         }
@@ -145,7 +145,7 @@ public final class MonoHash {
         }
     }
 
-    private HashPlan parseHashPlan(final File planFile) throws ExitException {
+    private static HashPlan parseHashPlan(final Logger logger, final File planFile) throws ExitException {
         final long startAt = System.nanoTime();
         try {
             final HashPlan plan = HashPlan.apply(logger, planFile);
@@ -159,7 +159,7 @@ public final class MonoHash {
         }
     }
 
-    private HashResults executeHashPlan(final HashPlan plan, final Algorithm algorithm, final int concurrency) throws ExitException {
+    private static HashResults executeHashPlan(final Logger logger, final HashPlan plan, final Algorithm algorithm, final Concurrency concurrency) throws ExitException {
         final long startAt = System.currentTimeMillis();
         try {
             final HashResults hashResults = WhiteWalker.apply(logger, plan, algorithm, concurrency);
@@ -174,7 +174,7 @@ public final class MonoHash {
         }
     }
 
-    private void logDiff(final HashResults previousResults, final HashResults newResults, final Verification verification) {
+    private static void logDiff(final Logger logger, final HashResults previousResults, final HashResults newResults, final Verification verification) {
         final boolean logWarn = verification == Verification.WARN && logger.isWarnEnabled();
         final boolean logError = verification == Verification.REQUIRE && logger.isErrorEnabled();
 
@@ -210,7 +210,8 @@ public final class MonoHash {
         }
     }
 
-    private void exportResults(
+    private static void exportResults(
+            final Logger logger,
             final File exportFile,
             final HashResults previousResults,
             final HashResults newResults,
@@ -225,7 +226,7 @@ public final class MonoHash {
 
         if (previousResults == null) {
             // should not happen with REQUIRE as it should have short-circuited
-            logDiff(null, newResults, verification);
+            logDiff(logger, null, newResults, verification);
         } else {
             if (newResults.equals(previousResults)) {
                 if (logger.isDebugEnabled()) {
@@ -234,7 +235,7 @@ public final class MonoHash {
                 }
                 return;
             } else {
-                logDiff(previousResults, newResults, verification);
+                logDiff(logger, previousResults, newResults, verification);
                 if (verification == Verification.REQUIRE) {
                     throw new ExitException("[verification] was set to 'require', but there was a difference in export results",
                             ExitException.EXPORT_FILE_VERIFICATION_MISMATCH);
@@ -249,15 +250,25 @@ public final class MonoHash {
         }
     }
 
-    public HashResults run(final File hashPlan, final File export, final Algorithm algorithm, final int concurrency, final Verification verification) throws ExitException {
-        final File planFile = resolvePlanFile(hashPlan);
-        final File exportFile = resolveExportFile(export, verification);
-        final HashResults previousResults = readPreviousExport(exportFile, algorithm, verification);
+    public static HashResults run(final MonoHashBuilder.Ready builder) throws ExitException {
+        return run(builder.logger, builder.algorithm, builder.concurrency, builder.verification, builder.hashPlan, builder.export);
+    }
 
-        final HashPlan plan = parseHashPlan(planFile);
-        final HashResults hashResults = executeHashPlan(plan, algorithm, concurrency);
+    public static HashResults run(
+            final Logger logger,
+            final Algorithm algorithm,
+            final Concurrency concurrency,
+            final Verification verification,
+            final File hashPlan,
+            final File export) throws ExitException {
+        final File planFile = resolvePlanFile(logger, hashPlan);
+        final File exportFile = resolveExportFile(logger, export, verification);
+        final HashResults previousResults = readPreviousExport(logger, exportFile, algorithm, verification);
 
-        exportResults(exportFile, previousResults, hashResults, verification);
+        final HashPlan plan = parseHashPlan(logger, planFile);
+        final HashResults hashResults = executeHashPlan(logger, plan, algorithm, concurrency);
+
+        exportResults(logger, exportFile, previousResults, hashResults, verification);
         return hashResults;
     }
 }

@@ -4,6 +4,8 @@ import java.io.IOException
 import java.nio.charset.MalformedInputException
 import java.util.{Arrays => JArrays}
 
+import com.oradian.infra.monohash.param.LogLevel
+
 class HashPlanSpec extends Specification {
   private[this] def test(plan: String, logger: Logger = new LoggingLogger): HashPlan =
     HashPlan.apply(logger, new File(resources + plan + "/.monohash"))
@@ -50,9 +52,9 @@ class HashPlanSpec extends Specification {
     "Duplicate whitelist entries" >> {
       val logger = new LoggingLogger
       test("whitelist/04-duplicates", logger).whitelist ==== JArrays.asList(resources + "whitelist/04-duplicates/../01-dot/")
-      logger.messages(Logger.Level.WARN) ==== Seq(
-        LogMsg(Logger.Level.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
-        LogMsg(Logger.Level.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
+      logger.messages(LogLevel.WARN) ==== Seq(
+        LogMsg(LogLevel.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
+        LogMsg(LogLevel.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
       )
     }
   }

@@ -172,12 +172,12 @@ class MonoHashSpec extends Specification {
   "Non-canonical files handling" >> {
     "Broken hash plan path" >> {
       val logger = new LoggingLogger
-      new MonoHash(logger).run(new File("\u0000"), null, null, 0, null) must
+      MonoHash.run(logger, null, null, null, new File("\u0000"), null) must
         throwAn[ExitException]("Could not resolve canonical path of \\[hash plan file\\]: '\u0000'")
     }
     "Broken export path" >> {
       val logger = new LoggingLogger
-      new MonoHash(logger).run(new File(resources), new File("\u0000"), null, 0, null) must
+      MonoHash.run(logger, null, null, null, new File(resources), new File("\u0000")) must
         throwAn[ExitException]("Could not resolve canonical path of \\[export file\\]: '\u0000'")
     }
   }

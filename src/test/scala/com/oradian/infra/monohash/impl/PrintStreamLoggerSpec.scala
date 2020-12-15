@@ -3,9 +3,11 @@ package impl
 
 import java.util.Locale
 
+import com.oradian.infra.monohash.param.LogLevel
+
 class PrintStreamLoggerSpec extends Specification {
   "Cross product of level and logging works" >> {
-    for (level <- Logger.Level.values.toSeq) yield {
+    for (level <- LogLevel.values.toSeq) yield {
       val logLines = withPS { testStream =>
         testStream.println("<init>")
         val logger = new PrintStreamLogger(testStream, level)
@@ -17,7 +19,7 @@ class PrintStreamLoggerSpec extends Specification {
 
   private[this] def withLogger(f: PrintStreamLogger => Any): String =
     withPS { testStream =>
-      val logger = new PrintStreamLogger(testStream, Logger.Level.TRACE)
+      val logger = new PrintStreamLogger(testStream, LogLevel.TRACE)
       f(logger)
     }._2
 
@@ -30,7 +32,7 @@ class PrintStreamLoggerSpec extends Specification {
     val logLines = withLogger { logger =>
       spam(logger)
     }.split('\n')
-    val levelsThatOutputStuff = Logger.Level.values.tail
+    val levelsThatOutputStuff = LogLevel.values.tail
     (logLines zip levelsThatOutputStuff).toSeq map { case (logLine, level) =>
       logLine must startWith("[" + level.name.toLowerCase(Locale.ROOT) + "] ")
     }
@@ -44,7 +46,7 @@ class PrintStreamLoggerSpec extends Specification {
 """
     }
 
-    "Multi-line messages have Logger.Level headers" >> {
+    "Multi-line messages have LogLevel headers" >> {
       withLogger(_.error(
         """This is a
 multi-line message with

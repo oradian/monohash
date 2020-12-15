@@ -1,4 +1,5 @@
 package com.oradian.infra.monohash
+package param
 
 import java.nio.file.{Files, Paths}
 import java.security.{MessageDigest, Security}
@@ -39,7 +40,7 @@ class AlgorithmSpec extends Specification {
         Files.write(testPath, bytes)
         val logger = new LoggingLogger
         val bytesHashed = new LongAdder
-        val algorithm = new Algorithm("git", Security.getProvider("SUN"))
+        val algorithm = Algorithm.parseString("git @ SUN")
         val worker = new HashWorker(logger, algorithm, bytesHashed)
         val actualHash = worker.hashFile(testPath.toFile)
         bytesHashed.longValue ==== 3
@@ -55,7 +56,7 @@ class AlgorithmSpec extends Specification {
 
         val logger = new LoggingLogger
         val bytesHashed = new LongAdder
-        val algorithm = new Algorithm("git")
+        val algorithm = new Algorithm(Algorithm.GIT)
         val worker = new HashWorker(logger, algorithm, bytesHashed)
         val actualHash = worker.hashFile(testPath.toFile)
         bytesHashed.longValue ==== 1024 * 1024

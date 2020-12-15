@@ -1,5 +1,7 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.param.Algorithm;
+import com.oradian.infra.monohash.param.Concurrency;
 import com.oradian.infra.monohash.util.Format;
 
 import java.io.File;
@@ -197,7 +199,7 @@ final class WhiteWalker {
         return path.substring(basePath.length());
     }
 
-    public static HashResults apply(final Logger logger, final HashPlan hashPlan, final Algorithm algorithm, final int concurrency) throws Exception {
+    public static HashResults apply(final Logger logger, final HashPlan hashPlan, final Algorithm algorithm, final Concurrency concurrency) throws Exception {
         final Queue<File> workQueue = new ArrayDeque<>();
         for (final String relativePath : hashPlan.whitelist) {
             final File file = new File(relativePath);
@@ -208,9 +210,10 @@ final class WhiteWalker {
             workQueue.add(file);
         }
 
-        final Thread[] workers = new Thread[concurrency];
+        final int threads = concurrency.getConcurrency();
+        final Thread[] workers = new Thread[threads];
 
-        final Semaphore workersFinished = new Semaphore(1 - concurrency);
+        final Semaphore workersFinished = new Semaphore(1 - threads);
         final AtomicReference<Exception> workerError = new AtomicReference<>();
         final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError);
 

@@ -1,18 +1,22 @@
 package com.oradian.infra.monohash
 
+import java.util.{Arrays => JArrays}
+
+import com.oradian.infra.monohash.param.{Algorithm, CmdLineParser, Concurrency, LogLevel, Verification}
+
 class CmdLineParserSpec extends Specification {
   sequential
 
   private[this] def testPL(args: String*)
-                          (parseChk: (CmdLineParser => MatchResult[_])*)
+                          (parseChk: (MonoHashBuilder#Ready => MatchResult[_])*)
                           (logChk: (LoggingLogger => MatchResult[_])*): Seq[MatchResult[_]] = {
     val logger = new LoggingLogger
-    val parser = new CmdLineParser(args.toArray, _ => logger)
-    parseChk.map(_.apply(parser))
+    val ready = CmdLineParser.parse(JArrays.asList(args: _*), _ => logger)
+    parseChk.map(_.apply(ready))
     logChk.map(_.apply(logger))
   }
 
-  private[this] def test(args: String*)(parseChk: (CmdLineParser => MatchResult[_])*): Seq[MatchResult[_]] =
+  private[this] def test(args: String*)(parseChk: (MonoHashBuilder#Ready => MatchResult[_])*): Seq[MatchResult[_]] =
     testPL(args: _*)(parseChk: _*)()
 
   "Empty argument handling" >> {
@@ -30,34 +34,41 @@ class CmdLineParserSpec extends Specification {
   private[this] val fakePlan = java.util.UUID.randomUUID().toString
   private[this] val fakeExport = java.util.UUID.randomUUID().toString
 
+  private[this] val fakePlanFile = new File(fakePlan)
+  private[this] val fakeExportFile = new File(fakeExport)
+
   "Simple hash plan" >> {
     test(fakePlan)(
-      _.hashPlanPath ==== fakePlan,
-      _.exportPath ==== null,
+      _.hashPlan ==== fakePlanFile,
+      _.export ==== null,
     )
 
     test(fakePlan, fakeExport)(
-      _.hashPlanPath ==== fakePlan,
-      _.exportPath ==== fakeExport,
+      _.hashPlan ==== fakePlanFile,
+      _.export ==== fakeExportFile,
     )
   }
 
-  "Default options + logging check" >> {
+  "Default options" >> {
     testPL(fakePlan)(
-      _.logLevel ==== Logger.Level.INFO,
-      _.algorithm.name ==== "SHA-1",
-      _.concurrency must be > 0,
-      _.verification ==== Verification.OFF,
-      _.hashPlanPath ==== fakePlan,
-      _.exportPath ==== null,
-    )(
+      _.algorithm must beTheSameAs(Algorithm.DEFAULT),
+      _.concurrency must beTheSameAs(Concurrency.DEFAULT),
+      _.verification must beTheSameAs(Verification.DEFAULT),
+      _.hashPlan ==== fakePlanFile,
+      _.export ==== null,
+    )()
+  }
+
+  "Default options + trace logging check" >> {
+    testPL("-ltrace", fakePlan)()(
       _.messages() ==== Seq(
-        LogMsg(Logger.Level.DEBUG, s"Parsing arguments:\n  $fakePlan"),
-        LogMsg(Logger.Level.DEBUG, s"Using log level: info"),
-        LogMsg(Logger.Level.DEBUG, s"Using algorithm: SHA-1"),
-        LogMsg(Logger.Level.DEBUG, s"Using concurrency: " + CmdLineParser.getCurrentDefaultConcurrency),
-        LogMsg(Logger.Level.DEBUG, s"Using verification: off"),
-        LogMsg(Logger.Level.TRACE, s"Remaining arguments after processing additional options:\n  $fakePlan")
+        LogMsg(LogLevel.TRACE, s"Parsed log level: trace"),
+        LogMsg(LogLevel.DEBUG, s"Using log level: trace"),
+        LogMsg(LogLevel.DEBUG, s"Parsing arguments:\n  -ltrace\n  $fakePlan"),
+        LogMsg(LogLevel.DEBUG, s"Using algorithm: SHA-1"),
+        LogMsg(LogLevel.DEBUG, s"Using concurrency: " + Concurrency.cpuRelative(1.0).getConcurrency),
+        LogMsg(LogLevel.DEBUG, s"Using verification: off"),
+        LogMsg(LogLevel.TRACE, s"Remaining arguments after processing options:\n  $fakePlan"),
       )
     )
   }
@@ -69,18 +80,18 @@ class CmdLineParserSpec extends Specification {
       test("-l", "--")() must throwAn[ExitException]("Missing value for log level, next argument was the stop flag '--'")
       test("-l", fakePlan)() must throwAn[ExitException](s"Unknown log level: '$fakePlan', supported log levels are: off, error, warn, info, debug, trace")
       test("-l", "xxx", fakePlan)() must throwAn[ExitException]("Unknown log level: 'xxx', supported log levels are: off, error, warn, info, debug, trace")
-      test("-l", "off", fakePlan)(
-        _.logLevel ==== Logger.Level.OFF,
-        _.exportPath ==== null,
-      )
-      test("-l", "OfF", "--", fakePlan)(
-        _.logLevel ==== Logger.Level.OFF,
-        _.exportPath ==== null,
-      )
-      test("-l", "off", "-l", "error", fakePlan)(
-        _.logLevel ==== Logger.Level.ERROR,
-        _.exportPath ==== null,
-      )
+//      test("-l", "off", fakePlan)(
+//        _.logLevel ==== LogLevel.OFF,
+//        _.export ==== null,
+//      )
+//      test("-l", "OfF", "--", fakePlan)(
+//        _.logLevel ==== LogLevel.OFF,
+//        _.export ==== null,
+//      )
+//      test("-l", "off", "-l", "error", fakePlan)(
+//        _.logLevel ==== LogLevel.ERROR,
+//        _.export ==== null,
+//      )
     }
 
     "Algorithm parsing" >> {
@@ -91,15 +102,15 @@ class CmdLineParserSpec extends Specification {
       test("-axxx", fakePlan)() must throwAn[ExitException]("Algorithm 'xxx' is not supported. Supported algorithms:")
       test("-a", "gIt", fakePlan)(
         _.algorithm.name ==== "GIT",
-        _.exportPath ==== null,
+        _.export ==== null,
       )
       test("-aShA-256", "--", fakePlan)(
         _.algorithm.name ==== "SHA-256",
-        _.exportPath ==== null,
+        _.export ==== null,
       )
       test("-a", "SHA-256", "-a", "sha-512", fakePlan)(
         _.algorithm.name ==== "SHA-512",
-        _.exportPath ==== null,
+        _.export ==== null,
       )
     }
 
@@ -107,21 +118,31 @@ class CmdLineParserSpec extends Specification {
       test("-c")() must throwAn[ExitException]("Missing value for concurrency, last argument was an alone '-c'")
       test("-c", "")() must throwAn[ExitException]("Empty value provided for concurrency")
       test("-c", "--")() must throwAn[ExitException]("Missing value for concurrency, next argument was the stop flag '--'")
-      test("-c", fakePlan)() must throwAn[ExitException](s"Invalid concurrency setting: '$fakePlan', expecting a positive integer")
-      test("-cxxx", fakePlan)() must throwAn[ExitException]("Invalid concurrency setting: 'xxx', expecting a positive integer")
-      test("-c", "0", fakePlan)() must throwAn[ExitException]("Concurrency must be a positive integer, got: '0'")
-      test("-c", "-12", fakePlan)() must throwAn[ExitException]("Concurrency must be a positive integer, got: '-12'")
-      test("-c", "123", fakePlan)(
-        _.concurrency ==== 123,
-        _.exportPath ==== null,
+      test("-c", fakePlan)() must throwAn[ExitException](s"Could not parse fixed concurrency: $fakePlan")
+      test("-cxxx", fakePlan)() must throwAn[ExitException]("Could not parse fixed concurrency: xxx")
+
+      test("-c", "0", fakePlan)() must throwAn[ExitException]("Fixed concurrency cannot be lower than 1, got: 0")
+      test("-c", "-12", fakePlan)() must throwAn[ExitException]("Fixed concurrency cannot be lower than 1, got: -12")
+      test("-c", "1234", fakePlan)() must throwAn[ExitException]("Fixed concurrency cannot be higher than 1000, got: 1234")
+      test("-c23", "--", fakePlan)(
+        _.concurrency ==== Concurrency.fixed(23),
+        _.export ==== null,
       )
-      test("-c1234", "--", fakePlan)(
-        _.concurrency ==== 1234,
-        _.exportPath ==== null,
+      test("-c", "1", "-c", "34", fakePlan)(
+        _.concurrency ==== Concurrency.fixed(34),
+        _.export ==== null,
       )
-      test("-c", "1", "-c", "12345", fakePlan)(
-        _.concurrency ==== 12345,
-        _.exportPath ==== null,
+
+      test("-c", "cpUx")() must throwAn[ExitException]("Could not parse CPU-relative concurrency: cpUx")
+      test("-c", "cPu*0.095", fakePlan)() must throwAn[ExitException]("CPU relative concurrency factor cannot be lower than 0\\.1, got: 0\\.095")
+      test("-c", "CPU *1000.5", fakePlan)() must throwAn[ExitException]("CPU relative concurrency factor cannot be higher than 10\\.0, got: 1000\\.5")
+      test("-c", "cpu", fakePlan)(
+        _.concurrency ==== Concurrency.cpuRelative(1),
+        _.export ==== null,
+      )
+      test("-ccPU   *   3", fakePlan)(
+        _.concurrency ==== Concurrency.cpuRelative(3),
+        _.export ==== null,
       )
     }
 
@@ -133,15 +154,15 @@ class CmdLineParserSpec extends Specification {
       test("-vxxx", fakePlan)() must throwAn[ExitException]("Unknown verification: 'xxx', supported verifications are: off, warn, require")
       test("-v", "warn", fakePlan)(
         _.verification ==== Verification.WARN,
-        _.exportPath ==== null,
+        _.export ==== null,
       )
       test("-vWaRn", "--", fakePlan)(
         _.verification ==== Verification.WARN,
-        _.exportPath ==== null,
+        _.export ==== null,
       )
       test("-v", "warn", "-v", "require", fakePlan, fakeExport)(
         _.verification ==== Verification.REQUIRE,
-        _.exportPath ==== fakeExport,
+        _.export ==== fakeExportFile,
       )
     }
 
@@ -152,20 +173,18 @@ class CmdLineParserSpec extends Specification {
 
     "Complex additional options parsing with overrides" >> {
       test("-l", "off", "-a", "SHA-256", "-c", "2", "-aGIT", "-v", "warn", fakePlan)(
-        _.logLevel ==== Logger.Level.OFF,
         _.algorithm.name ==== "GIT",
-        _.concurrency ==== 2,
+        _.concurrency ==== Concurrency.fixed(2),
         _.verification ==== Verification.WARN,
-        _.hashPlanPath ==== fakePlan,
-        _.exportPath ==== null,
+        _.hashPlan ==== fakePlanFile,
+        _.export ==== null,
       )
-      test("-vWaRn", "-a", "MD5", "-c123", "-l", "ERROR", "-v", "Require", "-aSHA-384", "--", "-aplan", "-vexport")(
-        _.logLevel ==== Logger.Level.ERROR,
+      test("-vWaRn", "-a", "MD5", "-cCPU * 2", "-l", "ERROR", "-v", "Require", "-aSHA-384", "--", "-aplan", "-vexport")(
         _.algorithm.name ==== "SHA-384",
-        _.concurrency ==== 123,
+        _.concurrency ==== Concurrency.cpuRelative(2),
         _.verification ==== Verification.REQUIRE,
-        _.hashPlanPath ==== "-aplan",
-        _.exportPath ==== "-vexport",
+        _.hashPlan ==== new File("-aplan"),
+        _.export ==== new File("-vexport"),
       )
     }
   }
@@ -175,25 +194,25 @@ class CmdLineParserSpec extends Specification {
       throwA[ExitException]("""There are too many arguments provided after \[hash plan file\] and \[export file\], first was: 'xyzzy'""")
   }
 
-  "No algorithms check" >> {
-    import java.security.Security
-    val providers = Security.getProviders()
-    try {
-      for (provider <- providers) {
-        // Can prolly cause some flip-flops in CI tests.
-        // Using `sequential` so that this is the last test in the suite.
-        // Perhaps the test is not worth-it and can remain as a commented out expectation
-        Security.removeProvider(provider.getName)
-      }
-      test()() must throwAn[ExitException]("Algorithm 'SHA-1' is not supported. Supported algorithms: <none>")
-      test("-agIt")() must throwAn[ExitException]("Algorithm 'gIt' is not supported. Supported algorithms: <none>")
-      test("-aSHaaAaaA")() must throwAn[ExitException]("Algorithm 'SHaaAaaA' is not supported. Supported algorithms: <none>")
-    } finally {
-      for (provider <- providers) {
-        Security.addProvider(provider)
-      }
-      // test restoration of sanity
-      test("-a", "Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕")() must throwAn[ExitException]("""Algorithm 'Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕' is not supported. Supported algorithms: .*aliases.*""")
-    }
-  }
+//  "No algorithms check" >> {
+//    import java.security.Security
+//    val providers = Security.getProviders()
+//    try {
+//      for (provider <- providers) {
+//        // Can probably cause some flip-flops in CI tests.
+//        // Using `sequential` so that this is the last test in the suite.
+//        // Perhaps the test is not worth-it and can remain as a commented out expectation
+//        Security.removeProvider(provider.getName)
+//      }
+//      test(fakePlan)() must throwAn[ExitException]("Algorithm 'SHA-1' is not supported. Supported algorithms: <none>")
+//      test("-agIt")() must throwAn[ExitException]("Algorithm 'gIt' is not supported. Supported algorithms: <none>")
+//      test("-aSHaaAaaA")() must throwAn[ExitException]("Algorithm 'SHaaAaaA' is not supported. Supported algorithms: <none>")
+//    } finally {
+//      for (provider <- providers) {
+//        Security.addProvider(provider)
+//      }
+//      // test restoration of sanity
+//      test("-a", "Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕")() must throwAn[ExitException]("""Algorithm 'Ẓ̟̙̪͙͓́ͬͫͮ̿͒̈͊͊̿ͧ̂̎ͬ́͞A̤͇̺̲̪̖̥̠̳̘̻̬͍͙̣͎̝͔͋̅͒̏͗͂̑͆ͬͣ͒̾̚̕͞L̛̎̉͂ͪͫ̌ͣ̐̿͑ͩ̽̐̍͆̆͆ͦ҉̥̬̠̞̗͓̻̩͟Ġͫ͋ͪͧ̂̉͗̀̚̚҉̭͎̰͎͓̗̗̺̲̰͚̻̼̰̜͉͟O̖̙̝̥̳͕̪̥͖͍̺͊ͮͪ̾ͤ̓̏͗̐̊̀̃͊͘̕' is not supported. Supported algorithms: .*aliases.*""")
+//    }
+//  }
 }

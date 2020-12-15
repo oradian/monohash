@@ -1,8 +1,6 @@
 package com.oradian.infra.monohash;
 
 public interface Logger {
-    enum Level { OFF, ERROR, WARN, INFO, DEBUG, TRACE }
-
     boolean isErrorEnabled();
     boolean isWarnEnabled();
     boolean isInfoEnabled();
