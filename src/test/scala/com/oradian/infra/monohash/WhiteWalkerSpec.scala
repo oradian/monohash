@@ -1,10 +1,9 @@
 package com.oradian.infra.monohash
 
-import com.oradian.infra.monohash.impl.NoopLogger
-import com.oradian.infra.monohash.param.{Algorithm, Concurrency}
+import com.oradian.infra.monohash.param.{Algorithm, Concurrency, LogLevel}
 
 class WhiteWalkerSpec extends Specification {
-  private[this] val logger = NoopLogger.INSTANCE
+  private[this] val logger = new LoggingLogger(LogLevel.TRACE)
   private[this] val algorithm = Algorithm.DEFAULT
   private[this] val concurrency = Concurrency.fixed(1)
 

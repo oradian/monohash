@@ -3,11 +3,11 @@ package com.oradian.infra.monohash
 import java.nio.file.Files
 import java.security.MessageDigest
 
-import com.oradian.infra.monohash.param.Algorithm
+import com.oradian.infra.monohash.param.{Algorithm, LogLevel}
 import com.oradian.infra.monohash.util.Hex
 
 class HashResultsSpec extends Specification {
-  private[this] val logger: LoggingLogger = new LoggingLogger()
+  private[this] val logger = new LoggingLogger(LogLevel.TRACE)
   private[this] val algorithm = Algorithm.DEFAULT
   private[this] val lengthInBytes = algorithm.lengthInBytes
 

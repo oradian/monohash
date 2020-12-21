@@ -3,11 +3,11 @@ package diff
 
 import java.util.{Collections, Arrays => JArrays}
 
-import com.oradian.infra.monohash.param.Algorithm
+import com.oradian.infra.monohash.param.{Algorithm, LogLevel}
 import com.oradian.infra.monohash.util.Hex
 
 class DiffSpec extends Specification {
-  private[this] val logger: LoggingLogger = new LoggingLogger()
+  private[this] val logger = new LoggingLogger(LogLevel.TRACE)
   private[this] val algorithm = Algorithm.DEFAULT
 
   private[this] type LM = java.util.LinkedHashMap[String, Array[Byte]]

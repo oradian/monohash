@@ -7,7 +7,7 @@ import java.util.{Arrays => JArrays}
 import com.oradian.infra.monohash.param.LogLevel
 
 class HashPlanSpec extends Specification {
-  private[this] def test(plan: String, logger: Logger = new LoggingLogger): HashPlan =
+  private[this] def test(plan: String, logger: Logger = new LoggingLogger(LogLevel.TRACE)): HashPlan =
     HashPlan.apply(logger, new File(resources + plan + "/.monohash"))
 
   "Enforces UTF-8" >> {
@@ -50,7 +50,7 @@ class HashPlanSpec extends Specification {
     )
 
     "Duplicate whitelist entries" >> {
-      val logger = new LoggingLogger
+      val logger = new LoggingLogger(LogLevel.TRACE)
       test("whitelist/04-duplicates", logger).whitelist ==== JArrays.asList(resources + "whitelist/04-duplicates/../01-dot/")
       logger.messages(LogLevel.WARN) ==== Seq(
         LogMsg(LogLevel.WARN, "Whitelist entry '../01-dot/' is a duplicate - please review the [hash plan]"),
@@ -60,7 +60,7 @@ class HashPlanSpec extends Specification {
   }
 
   "Process directory as empty hash plan" >> {
-    val logger = new LoggingLogger
+    val logger = new LoggingLogger(LogLevel.TRACE)
     val hashPlan = HashPlan.apply(logger, new File(resources))
     hashPlan.basePath ==== resources
     hashPlan.whitelist ==== JArrays.asList(resources)
@@ -68,7 +68,7 @@ class HashPlanSpec extends Specification {
   }
 
   "HashPlans must be rooted in reality" >> {
-    val logger = new LoggingLogger
+    val logger = new LoggingLogger(LogLevel.TRACE)
 
     HashPlan.apply(logger, new File("\u0000")) must
       throwAn[IOException]("Could not resolve canonical path for \\[hash plan\\]: '\u0000'")

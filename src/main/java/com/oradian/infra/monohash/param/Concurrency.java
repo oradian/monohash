@@ -91,13 +91,13 @@ public abstract class Concurrency {
 
         private CpuRelative(final double factor) {
             if (!Double.isFinite(factor)) {
-                throw new IllegalArgumentException("CPU relative concurrency factor needs to be a finite number, got: " + factor);
+                throw new IllegalArgumentException("CPU-relative concurrency factor needs to be a finite number, got: " + factor);
             }
             if (factor < MIN) {
-                throw new IllegalArgumentException("CPU relative concurrency factor cannot be lower than " + MIN + ", got: " + factor);
+                throw new IllegalArgumentException("CPU-relative concurrency factor cannot be lower than " + MIN + ", got: " + factor);
             }
             if (factor > MAX) {
-                throw new IllegalArgumentException("CPU relative concurrency factor cannot be higher than " + MAX + ", got: " + factor);
+                throw new IllegalArgumentException("CPU-relative concurrency factor cannot be higher than " + MAX + ", got: " + factor);
             }
             this.factor = factor;
         }
@@ -144,11 +144,8 @@ public abstract class Concurrency {
                 if (multiplier == null) {
                     factor = 1.0;
                 } else {
-                    try {
-                       factor = Double.parseDouble(multiplier);
-                    } catch (final NumberFormatException e) {
-                        throw new ParamParseException("Could not parse CPU-relative concurrency: " + value, e);
-                    }
+                    // should always parse due to regex above, but can be a non-finite number
+                   factor = Double.parseDouble(multiplier);
                 }
                 try {
                     return new CpuRelative(factor);

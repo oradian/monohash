@@ -6,14 +6,14 @@ import java.util.Locale
 import com.oradian.infra.monohash.param.LogLevel
 
 class PrintStreamLoggerSpec extends Specification {
-  "Cross product of level and logging works" >> {
-    for (level <- LogLevel.values.toSeq) yield {
+  "Cross product of logLevel and logging works" >> {
+    for (logLevel <- LogLevel.values.toSeq) yield {
       val logLines = withPS { testStream =>
         testStream.println("<init>")
-        val logger = new PrintStreamLogger(testStream, level)
+        val logger = new PrintStreamLogger(testStream, logLevel)
         spam(logger)
       }._2.split(PrintStreamLogger.NL)
-      logLines must have size level.ordinal + 1 // 1 is for "<init>", need it for the NL split
+      logLines must have size logLevel.ordinal + 1 // 1 is for "<init>", need it for the NL split
     }
   }
 
@@ -32,9 +32,9 @@ class PrintStreamLoggerSpec extends Specification {
     val logLines = withLogger { logger =>
       spam(logger)
     }.split('\n')
-    val levelsThatOutputStuff = LogLevel.values.tail
-    (logLines zip levelsThatOutputStuff).toSeq map { case (logLine, level) =>
-      logLine must startWith("[" + level.name.toLowerCase(Locale.ROOT) + "] ")
+    val logLevelsThatOutputStuff = LogLevel.values.tail
+    (logLines zip logLevelsThatOutputStuff).toSeq map { case (logLine, logLevel) =>
+      logLine must startWith("[" + logLevel.name.toLowerCase(Locale.ROOT) + "] ")
     }
   }
 

@@ -7,7 +7,7 @@ import java.io.PrintStream;
 
 public final class PrintStreamLogger implements Logger {
     private final PrintStream printStream;
-    private final LogLevel logLevel;
+    public final LogLevel logLevel;
 
     public PrintStreamLogger(final PrintStream printStream, final LogLevel logLevel) {
         this.printStream = printStream;

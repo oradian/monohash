@@ -13,5 +13,5 @@ class SbtLogger(underlying: sbt.Logger, level: Level.Value) extends Logger {
   override def warn(msg: String): Unit = underlying.warn(msg)
   override def info(msg: String): Unit = underlying.info(msg)
   override def debug(msg: String): Unit = underlying.debug(msg)
-  override def trace(msg: String): Unit = underlying.verbose(msg) // alias for debug, not a real level
+  override def trace(msg: String): Unit = underlying.verbose(msg) // alias for debug, not a real Level in SBT
 }

@@ -14,8 +14,11 @@ object LoggingLogger {
 }
 
 /** Testing logger which buffers all log lines in memory and ensure we're not calling
- * logging lines without checking the log level beforehand */
-class LoggingLogger extends Logger {
+  * logging lines without checking the log logLevel beforehand.
+  *
+  * @param logLevel param is only used for Teeing to StdOut and for introspecting on the provided logLevel,
+  * the LoggingLogger will actually log every message regardless of this provided LogLevel */
+class LoggingLogger(val logLevel: LogLevel) extends Logger {
   private[this] val TeeToStdOut = false
   private[this] val logs = new ThreadLocal[LogData] {
     override def initialValue(): LogData = LogData(
@@ -51,7 +54,9 @@ class LoggingLogger extends Logger {
     }
     logData.messages += LogMsg(logLevel, msg)
     if (TeeToStdOut) {
-      println(s"[${logLevel.name.toLowerCase(java.util.Locale.ROOT)}] $msg")
+      if (this.logLevel.ordinal() >= logLevel.ordinal()) {
+        println(s"[${logLevel.name.toLowerCase(java.util.Locale.ROOT)}] $msg")
+      }
     }
   }
 

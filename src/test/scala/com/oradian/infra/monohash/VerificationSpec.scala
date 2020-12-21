@@ -2,7 +2,8 @@ package com.oradian.infra.monohash
 
 import java.nio.file.{Files, Paths}
 import java.util.{Arrays => JArrays}
-import com.oradian.infra.monohash.param.{Algorithm, CmdLineParser, Concurrency, LogLevel, Verification}
+
+import com.oradian.infra.monohash.param._
 import com.oradian.infra.monohash.util.Hex
 
 class VerificationSpec extends Specification {
@@ -11,7 +12,7 @@ class VerificationSpec extends Specification {
 
   "When export file is not provided" >> {
     def testNoExportProvided(verification: Verification): MatchResult[_] = {
-      val logger = new LoggingLogger
+      val logger = new LoggingLogger(LogLevel.TRACE)
       inWorkspace { ws =>
         Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
         try {
@@ -37,7 +38,7 @@ class VerificationSpec extends Specification {
   "When export file is provided, but missing" >> {
     def testExportProvidedButMissing(verification: Verification)
                                     (loggerCheck: LoggingLogger => MatchResult[_]): MatchResult[_] = {
-      val logger = new LoggingLogger
+      val logger = new LoggingLogger(LogLevel.TRACE)
       inWorkspace { ws =>
         Files.write(Paths.get(ws + "three-A.txt"), "AAA".getBytes(UTF_8))
         val missingExport = new File(ws + "export.missing")
@@ -70,7 +71,7 @@ class VerificationSpec extends Specification {
 
   private[this] def testExport(verification: Verification, previousExport: String, expectedExport: String)
                               (loggerCheck: LoggingLogger => MatchResult[_]): MatchResult[_] = {
-    val logger = new LoggingLogger
+    val logger = new LoggingLogger(LogLevel.TRACE)
     inWorkspace { source =>
       Files.write(Paths.get(source + "three-A.txt"), "AAA".getBytes(UTF_8))
       inWorkspace { output =>
@@ -188,8 +189,7 @@ class VerificationSpec extends Specification {
       Files.write(Paths.get(source + "random.bin"), Random.nextBytes(1024 * 1024))
       inWorkspace { output =>
         locally {
-          val logger = new LoggingLogger
-          val ready = CmdLineParser.parse(JArrays.asList("-voff", source, output + "export"), _ => logger)
+          val ready = CmdLineParser.parse(JArrays.asList("-voff", source, output + "export"), _ => new LoggingLogger(LogLevel.TRACE))
           ready.run()
         }
 
@@ -202,7 +202,7 @@ class VerificationSpec extends Specification {
           // re-read last modified time to ensure successful match below
           val momentInPast = export.lastModified
 
-          val logger = new LoggingLogger
+          val logger = new LoggingLogger(LogLevel.TRACE)
           val ready = CmdLineParser.parse(JArrays.asList("-v", verification.name, source, output + "export"), _ => logger)
           ready.run()
 
@@ -220,7 +220,7 @@ class VerificationSpec extends Specification {
   }
 
   "Empty diff check" >> {
-    val logger = new LoggingLogger
+    val logger = new LoggingLogger(LogLevel.TRACE)
     inWorkspace { ws =>
       val missingExport = new File(ws + "export.missing")
       MonoHash.run(logger, algorithm, concurrency, Verification.WARN, new File(ws), missingExport)
@@ -236,7 +236,7 @@ class VerificationSpec extends Specification {
   }
 
   "Hash different, but diff is empty (different ordering)" >> {
-    val logger = new LoggingLogger
+    val logger = new LoggingLogger(LogLevel.TRACE)
     inWorkspace { source =>
       Files.write(Paths.get(source + "three-A.txt"), "AAA".getBytes(UTF_8))
       Files.write(Paths.get(source + "three-B.txt"), "BBB".getBytes(UTF_8))

@@ -132,9 +132,11 @@ public final class Algorithm {
             cache.put(algorithm, self);
         }
         for (final SortedSet<String> aliasPair : aliasPairs) {
-            if (aliasPair.size() != 2) {
+            final int pairSize = aliasPair.size();
+            if (pairSize < 1 || pairSize > 2) {
                 throw new IllegalArgumentException("Expected pairs of aliases, but got: " + aliasPair);
             }
+
             final String a1 = aliasPair.first();
             final String a2 = aliasPair.last();
             final SortedSet<String> previous1 = cache.get(a1);
@@ -200,7 +202,7 @@ public final class Algorithm {
     }
 
     static Algorithm parseString(final String value) throws ParamParseException {
-        final Pattern pattern = Pattern.compile("^([^@]+?)(?: *@ *(.+))?$");
+        final Pattern pattern = Pattern.compile("^([^@]+?)(?: *@ *([A-Z]+))?$");
         final Matcher matcher = pattern.matcher(value);
         if (matcher.find()) {
             final String name = matcher.group(1);
