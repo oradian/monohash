@@ -1,13 +1,16 @@
 package com.oradian.infra.monohash
 
+import com.oradian.infra.monohash.param.{Algorithm, Concurrency, LogLevel}
+
 class WhiteWalkerSpec extends Specification {
-  private[this] val logger = new LoggingLogger
-  private[this] val algorithm = new Algorithm("SHA-1")
+  private[this] val logger = new LoggingLogger(LogLevel.TRACE)
+  private[this] val algorithm = Algorithm.DEFAULT
+  private[this] val concurrency = Concurrency.fixed(1)
 
   private[this] def test(path: String)(expectedFiles: String*): MatchResult[Seq[(String, Seq[Byte])]] = {
     val planPath = new File(resources + s"whiteWalker/$path/.monohash")
     val hashPlan = HashPlan.apply(logger, planPath)
-    val actualHashResults = WhiteWalker.apply(logger, hashPlan, algorithm, 1).toMap.asScala.view.mapValues(_.toSeq).toSeq
+    val actualHashResults = WhiteWalker.apply(logger, hashPlan, algorithm, concurrency).toMap.asScala.view.mapValues(_.toSeq).toSeq
 
     val expectedHashResults = expectedFiles.map { file =>
       val nameHash = algorithm.init(() => ???)

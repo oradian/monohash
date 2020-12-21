@@ -1,4 +1,4 @@
-package com.oradian.infra.monohash;
+package com.oradian.infra.monohash.param;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -7,6 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class Algorithm {
     public static final String SHA_1 = "SHA-1";
@@ -17,48 +19,38 @@ public final class Algorithm {
     public final Provider provider;
     public final int lengthInBytes;
 
-    @FunctionalInterface
-    public interface LengthSupplier {
-        long get() throws IOException;
+    private final ThreadLocal<MessageDigest> digestFactory;
+
+    public Algorithm(final String name) throws NoSuchAlgorithmException {
+        this(name, null, true);
     }
 
-    private final ThreadLocal<MessageDigest> digest;
-    public MessageDigest init(final long length) {
-        final MessageDigest md = digest.get();
-        md.reset();
-
-        if (name.equals(GIT)) {
-            final byte[] header = ("blob " + length + '\u0000').getBytes(StandardCharsets.ISO_8859_1);
-            md.update(header);
-        }
-
-        return md;
+    public Algorithm(final String name, final Provider provider) throws NoSuchAlgorithmException {
+        this(name, provider, false);
     }
 
-    public MessageDigest init(final LengthSupplier length) throws IOException {
-        return init(name.equals(GIT) ? length.get() : 0L);
-    }
-
-    public Algorithm(final String algorithm) throws NoSuchAlgorithmException {
-        this(algorithm, null);
-    }
-
-    public Algorithm(final String algorithm, final Provider provider) throws NoSuchAlgorithmException {
-        name = algorithm.toUpperCase(Locale.ROOT);
+    private Algorithm(final String name, final Provider provider, final boolean resolveProvider) throws NoSuchAlgorithmException {
+        this.name = name.toUpperCase(Locale.ROOT);
 
         // The synthetic "GIT" algorithm is actually "SHA-1" under the hood + a length prefix,
         // so that it's compatible with Git's object IDs: (https://git-scm.com/book/en/v2/Git-Internals-Git-Objects
-        underlying = name.equals(GIT) ? SHA_1 : name;
+        this.underlying = this.name.equals(GIT) ? SHA_1 : this.name;
 
         // Check if it's possible to instantiate the MessageDigest immediately, instead of failing later
-        // If the provider was null we'll search through all of them to find the first digest implementation
-        final MessageDigest testDigest = provider == null
-                ? MessageDigest.getInstance(underlying)
-                : MessageDigest.getInstance(underlying, provider);
+        final MessageDigest testDigest;
+        if (provider == null) {
+            if (!resolveProvider) {
+                throw new IllegalArgumentException("provider cannot be null");
+            }
+            // If the provider was null we'll search through all of them to find the first digest implementation
+            testDigest = MessageDigest.getInstance(underlying);
+        } else {
+            testDigest = MessageDigest.getInstance(underlying, provider);
+        }
 
         this.provider = testDigest.getProvider();
-        lengthInBytes = testDigest.getDigestLength();
-        digest = ThreadLocal.withInitial(() -> {
+        this.lengthInBytes = testDigest.getDigestLength();
+        this.digestFactory = ThreadLocal.withInitial(() -> {
             try {
                 // lock the provider for this particular algorithm
                 return MessageDigest.getInstance(underlying, this.provider);
@@ -69,6 +61,53 @@ public final class Algorithm {
                         "', even though this was previously successful", e);
             }
         });
+    }
+
+    // =================================================================================================================
+
+    public MessageDigest init(final long length) {
+        final MessageDigest md = digestFactory.get();
+        md.reset();
+
+        if (name.equals(GIT)) {
+            final byte[] header = ("blob " + length + '\u0000').getBytes(StandardCharsets.ISO_8859_1);
+            md.update(header);
+        }
+
+        return md;
+    }
+
+    @FunctionalInterface
+    public interface LengthSupplier {
+        long get() throws IOException;
+    }
+
+    public MessageDigest init(final LengthSupplier length) throws IOException {
+        return init(name.equals(GIT) ? length.get() : 0L);
+    }
+
+    // =================================================================================================================
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Algorithm)) {
+            return false;
+        }
+        final Algorithm that = (Algorithm) obj;
+        return name.equals(that.name) && provider.equals(that.provider);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, provider);
+    }
+
+    @Override
+    public String toString() {
+        return "Algorithm(name=" + name + ", provider=" + provider.getName() + ')';
     }
 
     // =================================================================================================================
@@ -93,9 +132,11 @@ public final class Algorithm {
             cache.put(algorithm, self);
         }
         for (final SortedSet<String> aliasPair : aliasPairs) {
-            if (aliasPair.size() != 2) {
+            final int pairSize = aliasPair.size();
+            if (pairSize < 1 || pairSize > 2) {
                 throw new IllegalArgumentException("Expected pairs of aliases, but got: " + aliasPair);
             }
+
             final String a1 = aliasPair.first();
             final String a2 = aliasPair.last();
             final SortedSet<String> previous1 = cache.get(a1);
@@ -147,5 +188,39 @@ public final class Algorithm {
             result.put(GIT, Collections.emptySortedSet());
         }
         return result;
+    }
+
+    // #################################################################################################################
+
+    public static final Algorithm DEFAULT;
+    static {
+        try {
+            DEFAULT = parseString(Config.getString("Algorithm.DEFAULT"));
+        } catch (final ParamParseException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static Algorithm parseString(final String value) throws ParamParseException {
+        final Pattern pattern = Pattern.compile("^([^@]+?)(?: *@ *([A-Z]+))?$");
+        final Matcher matcher = pattern.matcher(value);
+        if (matcher.find()) {
+            final String name = matcher.group(1);
+            final String providerName = matcher.group(2);
+            try {
+                if (providerName == null) {
+                    return new Algorithm(name);
+                }
+                final Provider provider = Security.getProvider(providerName);
+                if (provider == null) {
+                    throw new ParamParseException("Could not load Security provider: " + providerName);
+                }
+                return new Algorithm(name, provider);
+            } catch (final NoSuchAlgorithmException e) {
+                throw new ParamParseException("Could not initialise Algorithm: " + value, e);
+            }
+        }
+
+        throw new ParamParseException("Could not parse Algorithm: " + value);
     }
 }

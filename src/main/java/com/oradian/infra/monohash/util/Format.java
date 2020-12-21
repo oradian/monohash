@@ -36,8 +36,9 @@ public final class Format {
         return integerFormat.format(value);
     }
 
-    private static final NumberFormat decimalFormat = NumberFormat.getInstance(Locale.ROOT);
+    private static final NumberFormat decimalFormat;
     static {
+        decimalFormat = NumberFormat.getInstance(Locale.ROOT);
         decimalFormat.setMinimumFractionDigits(3);
     }
     public static String f(final float value) {

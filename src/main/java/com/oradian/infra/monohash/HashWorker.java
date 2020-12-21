@@ -1,5 +1,6 @@
 package com.oradian.infra.monohash;
 
+import com.oradian.infra.monohash.param.Algorithm;
 import com.oradian.infra.monohash.util.Format;
 
 import java.io.File;

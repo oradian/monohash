@@ -31,12 +31,12 @@ public final class ExitException extends Exception {
 
     public final int exitCode;
 
-    ExitException(final String msg, final int exitCode) {
+    public ExitException(final String msg, final int exitCode) {
         super(msg);
         this.exitCode = exitCode;
     }
 
-    ExitException(final String msg, final int exitCode, final Exception cause) {
+    public ExitException(final String msg, final int exitCode, final Exception cause) {
         super(msg, cause);
         this.exitCode = exitCode;
     }

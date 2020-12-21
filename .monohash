@@ -1,6 +1,9 @@
 !.git/
 !.gitignore
 
+# Exclude tests
+!src/test/
+
 # Exclude docs
 !LICENSE
 !README.md

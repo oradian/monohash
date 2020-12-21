@@ -4,25 +4,30 @@ package impl
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicLong
 
+import com.oradian.infra.monohash.param.LogLevel
+
 import scala.collection.mutable
 
 object LoggingLogger {
-  case class LogMsg(logLevel: Logger.Level, msg: String)
-  case class LogData(checks: mutable.Map[Logger.Level, AtomicLong], messages: mutable.ArrayBuffer[LogMsg])
+  case class LogMsg(logLevel: LogLevel, msg: String)
+  case class LogData(checks: mutable.Map[LogLevel, AtomicLong], messages: mutable.ArrayBuffer[LogMsg])
 }
 
 /** Testing logger which buffers all log lines in memory and ensure we're not calling
- * logging lines without checking the log level beforehand */
-class LoggingLogger extends Logger {
+  * logging lines without checking the log logLevel beforehand.
+  *
+  * @param logLevel param is only used for Teeing to StdOut and for introspecting on the provided logLevel,
+  * the LoggingLogger will actually log every message regardless of this provided LogLevel */
+class LoggingLogger(val logLevel: LogLevel) extends Logger {
   private[this] val TeeToStdOut = false
   private[this] val logs = new ThreadLocal[LogData] {
     override def initialValue(): LogData = LogData(
-      checks = mutable.Map(Logger.Level.values.toSeq.filter(_ != Logger.Level.OFF).map(_ -> new AtomicLong): _*),
+      checks = mutable.Map(LogLevel.values.toSeq.filter(_ != LogLevel.OFF).map(_ -> new AtomicLong): _*),
       messages = mutable.ArrayBuffer.empty,
     )
   }
 
-  def messages(minimumLogLevel: Logger.Level = Logger.Level.TRACE): Seq[LogMsg] =
+  def messages(minimumLogLevel: LogLevel = LogLevel.TRACE): Seq[LogMsg] =
     logs.get().messages.toSeq.filter(minimumLogLevel.ordinal >= _.logLevel.ordinal)
 
   def clear(): Unit = {
@@ -31,7 +36,7 @@ class LoggingLogger extends Logger {
     logData.checks.values.foreach{_.set(0)}
   }
 
-  private[this] def log(logLevel: Logger.Level, msg: String): Unit = {
+  private[this] def log(logLevel: LogLevel, msg: String): Unit = {
     val logData = logs.get()
     val count = logData.checks(logLevel).decrementAndGet()
     if (count < 0) {
@@ -49,24 +54,26 @@ class LoggingLogger extends Logger {
     }
     logData.messages += LogMsg(logLevel, msg)
     if (TeeToStdOut) {
-      println(s"[${logLevel.name.toLowerCase(java.util.Locale.ROOT)}] $msg")
+      if (this.logLevel.ordinal() >= logLevel.ordinal()) {
+        println(s"[${logLevel.name.toLowerCase(java.util.Locale.ROOT)}] $msg")
+      }
     }
   }
 
-  private[this] def check(logLevel: Logger.Level): Boolean = {
+  private[this] def check(logLevel: LogLevel): Boolean = {
     logs.get().checks(logLevel).incrementAndGet()
     true
   }
 
-  override def error(msg: String): Unit = log(Logger.Level.ERROR, msg)
-  override def warn(msg: String): Unit = log(Logger.Level.WARN, msg)
-  override def info(msg: String): Unit = log(Logger.Level.INFO, msg)
-  override def debug(msg: String): Unit = log(Logger.Level.DEBUG, msg)
-  override def trace(msg: String): Unit = log(Logger.Level.TRACE, msg)
+  override def error(msg: String): Unit = log(LogLevel.ERROR, msg)
+  override def warn(msg: String): Unit = log(LogLevel.WARN, msg)
+  override def info(msg: String): Unit = log(LogLevel.INFO, msg)
+  override def debug(msg: String): Unit = log(LogLevel.DEBUG, msg)
+  override def trace(msg: String): Unit = log(LogLevel.TRACE, msg)
 
-  override def isErrorEnabled: Boolean = check(Logger.Level.ERROR)
-  override def isWarnEnabled: Boolean = check(Logger.Level.WARN)
-  override def isInfoEnabled: Boolean = check(Logger.Level.INFO)
-  override def isDebugEnabled: Boolean = check(Logger.Level.DEBUG)
-  override def isTraceEnabled: Boolean = check(Logger.Level.TRACE)
+  override def isErrorEnabled: Boolean = check(LogLevel.ERROR)
+  override def isWarnEnabled: Boolean = check(LogLevel.WARN)
+  override def isInfoEnabled: Boolean = check(LogLevel.INFO)
+  override def isDebugEnabled: Boolean = check(LogLevel.DEBUG)
+  override def isTraceEnabled: Boolean = check(LogLevel.TRACE)
 }

@@ -24,19 +24,20 @@ runtime code and test code - this means that your CI can reuse a cached build if
 run the test part of that CI pipeline while keeping the previously built main artifacts.
 
 MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on the
-[Linux repository](https://github.com/torvalds/linux/releases/tag/v5.10-rc5) completes in under a second when running on
+[Linux repository](https://github.com/torvalds/linux/releases/tag/v5.10) completes in under a second when running on
 [Hetzner's PX line](https://www.hetzner.com/dedicated-rootserver/px62-nvme):
 ```
 [melezov@ci-01 monohash]$ sbt package
-[info] welcome to sbt 1.4.4 (AdoptOpenJDK Java 1.8.0_272)
+[info] welcome to sbt 1.4.5 (AdoptOpenJDK Java 1.8.0_275)
 [info] set current project to monohash (in build file:/home/melezov/monohash/)
-[info] compiling 20 Java sources to /home/melezov/monohash/target/classes ...
-[success] Total time: 2 s, completed Nov 30, 2020 12:39:43 AM
+[info] compiling 26 Java sources to /home/melezov/monohash/target/classes ...
+[success] Total time: 2 s, completed Dec 22, 2020 7:35:50 PM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.8.1-SNAPSHOT.jar ~/linux-5.10-rc5/
-[info] Using [hash plan directory]: '/home/melezov/linux-5.10-rc5/' ...
-[info] Hashed 74,822 files with a total of 989,045,424 bytes in 0.792 sec (average speed: 94,472 files/sec, 1,190 MiB/sec)
-[info] Executed hash plan by hashing 74,822 files [9be032657c49009add50c4fbccd1d6bffaa4d593] (in 0.917 sec)
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.9.0-SNAPSHOT.jar ../linux/linux-5.10/
+[info] Using [hash plan directory]: '/home/melezov/linux/linux-5.10/' ...
+[info] Hashed 74,825 files with a total of 989,153,287 bytes in 0.815 sec (average speed: 91,809 files/sec, 1,157 MiB/sec)
+[info] Executed hash plan by hashing 74,825 files: [3fe808a7fb13acffc3dee02050fbe9fd25230809] (in 0.933 sec)
+3fe808a7fb13acffc3dee02050fbe9fd25230809
 ```
 
 
@@ -154,7 +155,6 @@ If you don't care about programmatic (library) access, you can simply
 and use it on the command line.
 
 Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:
-
 ```
 Usage: java -jar monohash.jar <options> [hash plan file] [export file (optional)]
 
@@ -169,21 +169,16 @@ Options:
 The optional `[export file]` argument can be used to dump the hashes for each traversed file.  
 Running MonoHash on its own folder produces the following export file:
 ```
-81c58d80a333caf6c8e077e809f52755c4bf7b0d .monohash
+e585655a90fec41c2b35ed47e14443d25571140b .monohash
 1a98da71f224d591991ca4a13663c381a404eede .travis.yml
-e91e0a6e2ae28daabd36016589464890e988418e build.sbt
-aac1c402f5ba623eefcdf2f1c60258defff1973f project/build.properties
-6abd00785fa263b088b1cb1457270418a14fc5bf project/plugins.sbt
-bc5c5f56be234577c861a00de3b9a6b52bcd58e4 project/publish.sbt.disabled
-8be7a61b089e8250049887b3954037fb8833b13a publish.sbt.disabled
-229bbaf4041633f809bf3784a174e7f9c6fc9589 src/main/java/com/oradian/infra/monohash/Algorithm.java
-ae0181ec4c07e7d77789d8a66f4d4a2490ebe226 src/main/java/com/oradian/infra/monohash/CmdLineParser.java
-81197abdab8214610c2dab552dd4ceb1cdfaeeda src/main/java/com/oradian/infra/monohash/ExitException.java
-818b9e83e0a8e2cfbfc5783d28697957be9c8a52 src/main/java/com/oradian/infra/monohash/ExportParsingException.java
-b9ab413b5242698be57a2c5c947731d724ee4488 src/main/java/com/oradian/infra/monohash/HashPlan.java
-659f65aac9e6054ef762fa3d955311749f883421 src/main/java/com/oradian/infra/monohash/HashResults.java
-44b3176c9f64dfeaea81ddccc46006b9dc7e737a src/main/java/com/oradian/infra/monohash/HashWorker.java
+75ab95fcec1cd3592c93e4a08fa208d01390f2cc build.sbt
+53f4b08ecc75560114eb52cc83670aadbfceec99 project/PropertiesVersion.scala
+a12240fc7b0923db1d55e351e6f490b0d501ab5d project/build.properties
+8c8e54954cf7ad27c8cd465fabd651d33d5fdfd7 project/build.sbt
 ...
+6389ba9ef4f64dda2296e60dc5aeae351e83a7ea src/main/java/com/oradian/infra/monohash/util/Hex.java
+2e5f7c7b14c786be2930b7edc21ade5c2ab9de62 src/main/resources/com/oradian/infra/monohash/param/monohash.properties
+900ff2fa3c861780df6ec38d0acbcb8f654a73bf version.sbt
 ```
 
 The export file's checksum is the actual output from MonoHash. The file paths are sorted alphabetically and are absolute
