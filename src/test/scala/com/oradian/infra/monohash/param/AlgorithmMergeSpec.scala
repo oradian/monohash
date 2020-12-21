@@ -3,8 +3,6 @@ package param
 
 import java.security.{MessageDigest, NoSuchAlgorithmException, Security}
 
-import scala.util.Try
-
 class AlgorithmMergeSpec extends Specification {
   private[this] def toJavaSortedSet[T](c: Iterable[T]): java.util.SortedSet[T] =
     new java.util.TreeSet(c.asJavaCollection)
@@ -95,16 +93,16 @@ class AlgorithmMergeSpec extends Specification {
 
   "GIT is injected if SHA-1 is available" >> {
     Algorithm.getAlgorithms.get("GIT") !=== null
-//    while ({
-//      try {
-//        val sha = MessageDigest.getInstance("SHA-1")
-//        Security.removeProvider(sha.getProvider.getName)
-//        true
-//      } catch {
-//        case _: NoSuchAlgorithmException =>
-//          false
-//      }
-//    }) {}
-//    Algorithm.getAlgorithms.get("GIT") ==== null
+    while ({
+      try {
+        val sha = MessageDigest.getInstance("SHA-1")
+        Security.removeProvider(sha.getProvider.getName)
+        true
+      } catch {
+        case _: NoSuchAlgorithmException =>
+          false
+      }
+    }) {}
+    Algorithm.getAlgorithms.get("GIT") ==== null
   }
 }
