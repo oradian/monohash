@@ -1,7 +1,10 @@
 package com.oradian.infra.monohash
 package param
 
-import java.security.{MessageDigest, NoSuchAlgorithmException, Security}
+import java.security.{NoSuchAlgorithmException, Security}
+import java.util.{Arrays => JArrays}
+
+import com.oradian.infra.monohash.impl.NoopLogger
 
 class AlgorithmMergeSpec extends Specification {
   private[this] def toJavaSortedSet[T](c: Iterable[T]): java.util.SortedSet[T] =
@@ -92,17 +95,19 @@ class AlgorithmMergeSpec extends Specification {
   }
 
   "GIT is injected if SHA-1 is available" >> {
-    Algorithm.getAlgorithms.get("GIT") !=== null
-    while ({
-      try {
-        val sha = MessageDigest.getInstance("SHA-1")
-        Security.removeProvider(sha.getProvider.getName)
-        true
-      } catch {
-        case _: NoSuchAlgorithmException =>
-          false
-      }
-    }) {}
-    Algorithm.getAlgorithms.get("GIT") ==== null
+    val git = new Algorithm(Algorithm.GIT)
+    CmdLineParser.parse(JArrays.asList("-agit", "plan"), _ => NoopLogger.INSTANCE).algorithm ==== git
+
+    Security.removeProvider(git.provider.getName)
+    try {
+      new Algorithm(Algorithm.GIT) must
+        throwA[NoSuchAlgorithmException]("SHA-1 MessageDigest not available")
+
+      CmdLineParser.parse(JArrays.asList("-agit", "plan"), _ => NoopLogger.INSTANCE) must
+        throwAn[ExitException]("Algorithm 'git' is not supported. Supported algorithms: \\<none\\>")
+    } finally {
+      // unless we bring this back, SBT will drop connection with the JVM
+      Security.addProvider(git.provider)
+    }
   }
 }

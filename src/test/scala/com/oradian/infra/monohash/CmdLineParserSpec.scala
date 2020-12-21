@@ -2,6 +2,7 @@ package com.oradian.infra.monohash
 
 import java.util.{Arrays => JArrays}
 
+import com.oradian.infra.monohash.impl.NoopLogger
 import com.oradian.infra.monohash.param._
 
 class CmdLineParserSpec extends Specification {
@@ -189,6 +190,17 @@ class CmdLineParserSpec extends Specification {
         _.hashPlan ==== new File("-aplan"),
         _.export ==== new File("-vexport"),
       )
+    }
+
+    "Noop logging" >> {
+      val params = JArrays.asList("-loff", "-amd5", "-c7", "-vwarn", "--", "planFile", "exportFile")
+      val parsed = CmdLineParser.parse(params, _ => NoopLogger.INSTANCE)
+      parsed.logger ==== NoopLogger.INSTANCE
+      parsed.algorithm ==== new Algorithm("md5")
+      parsed.concurrency ==== Concurrency.fixed(7)
+      parsed.verification ==== Verification.WARN
+      parsed.hashPlan ==== new File("planFile")
+      parsed.export ==== new File("exportFile")
     }
   }
 

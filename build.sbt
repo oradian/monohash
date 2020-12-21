@@ -47,7 +47,7 @@ Test / testGrouping := {
     envVars = (Test / envVars).value,
   )
   // run each test in separate forked JVM so that we can e.g.
-  // - screw up Security Providers and not have to clean it up
+  // - screw up Security Providers
   // - test loading of corrupted monohash.properties
   // - fiddle with Singletons via reflection ...
   (Test / definedTests).value map { test =>
@@ -56,7 +56,7 @@ Test / testGrouping := {
 }
 
 //Test / jacocoIncludes := Seq(
-//  "com.oradian.infra.monohash.param.Algorithm*"
+//  "com.oradian.infra.monohash.param.CmdLineParser*"
 //)
 jacocoReportSettings := JacocoReportSettings(
   // output to HTML for humans, and XML for Codecov
@@ -64,7 +64,7 @@ jacocoReportSettings := JacocoReportSettings(
 )
 
 //Global / testOptions := Seq(Tests.Filter { test =>
-//  test.contains("Algorithm")
+//  test.contains("CmdLineParser")
 //})
 
 Global / onLoad := { state =>
@@ -75,13 +75,14 @@ Global / onLoad := { state =>
   state
 }
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 //enablePlugins(SbtProguard)
 //proguardVersion in Proguard := "7.0.1"
 //proguardOptions in Proguard += ProguardOptions.keepMain("com.oradian.infra.monohash.MonoHash")
 ////proguardOptions in Proguard ++= Seq("-dontnote", "-dontwarn", "-ignorewarnings", "-dontobfuscate")
 //proguardOptions in Proguard ++= Seq("@d:\\Code\\monohash\\monohash.pro")
 //
-//Global / onChangedBuildSource := ReloadOnSourceChanges
 //
 //lazy val pd1 = taskKey[Unit]("Diff proguards 1")
 //
