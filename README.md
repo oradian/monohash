@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
 [![Codecov](https://codecov.io/gh/oradian/monohash/branch/develop/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Foradian%2Fmonohash.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Foradian%2Fmonohash?ref=badge_shield)
 
 **MonoHash** is a hashing library designed to work with monorepos containing multiple projects.  
 It's primary purpose is to allow for lean CI/CD cache invalidation which will only build relevant changes while ignoring
@@ -236,3 +237,6 @@ integer. The work is both IO (reading) and CPU bound, depending on the digest al
 **MonoHash** is published under the MIT open source license.
 
 Contributions are more than welcome!
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Foradian%2Fmonohash.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Foradian%2Fmonohash?ref=badge_large)
