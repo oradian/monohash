@@ -41,52 +41,51 @@ rootHasher := {
 lazy val loadLib = taskKey[Unit]("Package and load root project into harness")
 loadLib := {
   val lib = baseDirectory.value / "lib"
+  val cachedBuilds = baseDirectory.value / "target" / "cached-builds"
 
-  def previousHash: Either[String, Option[String]] = {
-    val previousJars = lib.listFiles("*.jar")
-    if (previousJars.isEmpty) {
-      Right(None)
-    } else if (previousJars.size == 1) {
-      val JarPattern = "monohash-([0-9a-f]+).jar".r
-      previousJars.head.getName match {
-        case JarPattern(version) => Right(Some(version))
-        case other => Left("Could not parse previous lib version: " + other)
-      }
+  def buildWithCaching(cacheTest: File): Boolean =
+    if (cacheTest.isFile) {
+      sLog.value.warn("Cached build already exists: " + cacheTest)
+      true
     } else {
-      Left("Multiple previous libs found: " + previousJars.mkString("\n  ", "\n  ", ""))
-    }
-  }
-
-  def build(previousHash: Option[String]): Unit = {
-    rootHasher.value.onDiff(previousHash) { hash =>
-      Resolvers.run(Some(baseDirectory.value / ".."),
-        "sbt",
-        s"""set version := "$hash"""",
-        "clean",
-        "package",
-      )
-
-      val src = baseDirectory.value / ".." / "target" / s"monohash-$hash.jar"
-      if (!src.isFile) {
-        sLog.value.error("Could not build new monohash")
+      sLog.value.warn("Cached build does not exist, building ...")
+      val homePath = baseDirectory.value / ".."
+      Resolvers.run(Some(homePath), "sbt", "clean", "package")
+      val target = homePath / "target"
+      val jars = IO.listFiles(target, "*.jar")
+      if (jars.length == 0) {
+        sLog.value.error("Cannot locate newly built jar in: " + target)
+        false
+      } else if (jars.length > 1) {
+        sLog.value.error("Multiple jars found in: " + target)
         false
       } else {
-        val lib = baseDirectory.value / "lib"
+        IO.move(jars.head, cacheTest)
+        sLog.value.warn("Cached new build to: " + cacheTest)
+        true
+      }
+    }
+
+  rootHasher.value.onDiff { hash =>
+    val jarName = s"monohash-$hash.jar"
+    val libDst = lib / jarName
+    if (libDst.isFile) {
+      sLog.value.warn("Current built is up to date: " + libDst)
+      true
+    } else {
+      val cacheTest = cachedBuilds / jarName
+      buildWithCaching(cacheTest) && {
         val cleanup = lib.listFiles("*.jar") filter { !_.delete() }
         if (cleanup.nonEmpty) {
           sLog.value.error("Could not cleanup previous libs:" + cleanup.mkString("\n  ", "\n  ", ""))
           false
         } else {
-          IO.move(src, lib / s"monohash-$hash.jar")
+          sLog.value.warn("Activating jar by copying it to libs: " + libDst)
+          IO.copyFile(cacheTest, libDst)
           true
         }
       }
     }
-  }
-
-  previousHash match {
-    case Left(error) => sLog.value.error(error)
-    case Right(ph) => build(ph)
   }
 }
 

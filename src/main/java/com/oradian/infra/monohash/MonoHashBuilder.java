@@ -77,7 +77,7 @@ public class MonoHashBuilder {
         }
 
         public HashResults run() throws ExitException {
-            return MonoHash.run(this);
+            return MonoHash.run(logger, algorithm, concurrency, verification, hashPlan, export);
         }
 
         @Override
@@ -104,7 +104,7 @@ public class MonoHashBuilder {
                     ", concurrency=" + concurrency +
                     ", verification=" + verification +
                     ", hashPlan=" + Format.file(hashPlan) +
-                    ", export=" + (export == null ? "null" : Format.file(export)) +
+                    ", export=" + Format.file(export) +
                     ')';
         }
     }
@@ -125,12 +125,12 @@ public class MonoHashBuilder {
         return verification == this.verification ? this : new MonoHashBuilder(logger, algorithm, concurrency, verification, export);
     }
 
-    public MonoHashBuilder withExport(final File export) {
-        return export == this.export ? this : new MonoHashBuilder(logger, algorithm, concurrency, verification, export);
-    }
-
     public Ready withHashPlan(final File hashPlan) {
         return new Ready(logger, algorithm, concurrency, verification, hashPlan, export);
+    }
+
+    public MonoHashBuilder withExport(final File export) {
+        return export == this.export ? this : new MonoHashBuilder(logger, algorithm, concurrency, verification, export);
     }
 
     @Override
@@ -160,7 +160,7 @@ public class MonoHashBuilder {
                 ", algorithm=" + algorithm +
                 ", concurrency=" + concurrency +
                 ", verification=" + verification +
-                ", export=" + (export == null ? "null" : Format.file(export)) +
+                ", export=" + Format.file(export) +
                 ')';
     }
 }

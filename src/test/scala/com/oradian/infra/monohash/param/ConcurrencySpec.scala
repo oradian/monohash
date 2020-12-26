@@ -2,6 +2,8 @@ package com.oradian.infra.monohash
 package param
 
 class ConcurrencySpec extends Specification {
+  sequential
+
   "Default is CPU * 1" >> {
     Concurrency.DEFAULT ==== Concurrency.cpuRelative(1)
   }

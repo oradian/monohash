@@ -9,11 +9,10 @@ public final class Format {
     private Format() {}
 
     public static String file(final File file) {
-        return '\'' + file.getPath().replace('\\', '/') + '\'';
+        return file == null ? "<none>" : '\'' + file.getPath().replace('\\', '/') + '\'';
     }
-    public static String dir(final File file) {
-        final String ff = file(file);
-        return ff.substring(0, ff.length() - 1).concat("/'");
+    public static String dir(final File directory) {
+        return directory == null ? "<none>" : '\'' + directory.getPath().replace('\\', '/') + "/'";
     }
 
     public static String lines(final String header, final Collection<String> lines) {

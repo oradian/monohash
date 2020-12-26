@@ -4,6 +4,8 @@ package impl
 import com.oradian.infra.monohash.param.LogLevel
 
 class LoggingLoggerSpec extends Specification {
+  sequential
+
   "Filtering and reporting works" >> {
     for (logLevel <- LogLevel.values.toSeq) yield {
       val logger = new LoggingLogger(logLevel)

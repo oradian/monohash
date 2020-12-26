@@ -9,6 +9,8 @@ import scala.reflect.ClassTag
 /** Destroy Config in various ways. This renders many param.* classes unoperable.
   * We're OK messing with these since we're running in our dedicated fork */
 class ConfigSpec extends Specification {
+  sequential
+
   private[this] val defaults = {
     val field = classOf[Config].getDeclaredField("defaults")
     field.setAccessible(true)

@@ -4,6 +4,8 @@ import com.oradian.infra.monohash.impl.{NoopLogger, PrintStreamLogger}
 import com.oradian.infra.monohash.param._
 
 class MonoHashBuilderSpec extends Specification with BouncyCastleHelpers {
+  sequential
+
   "Test static MonoHash forwarders" >> {
     "Defaults return the DEFAULT singleton" >> {
       Seq(
@@ -46,7 +48,7 @@ class MonoHashBuilderSpec extends Specification with BouncyCastleHelpers {
         "algorithm=Algorithm(name=SHA-1, provider=" + mhbDefault.algorithm.provider.getName + "), " +
         "concurrency=Concurrency.CpuRelative(1.0), " +
         "verification=off, " +
-        "export=null" +
+        "export=<none>" +
       ")"
 
     val mhbCustom = MonoHash
@@ -86,7 +88,7 @@ class MonoHashBuilderSpec extends Specification with BouncyCastleHelpers {
     // it is allowed to remove export
     val mhbReadyNoExport = mhbReady.withExport(null)
     mhbReadyNoExport.toString ====
-      mhbReadyString.replace("export='path/to/export.file'", "export=null")
+      mhbReadyString.replace("export='path/to/export.file'", "export=<none>")
   }
 
   "MonoHashBuilder .hashCode & .equals" >> {
@@ -112,7 +114,6 @@ class MonoHashBuilderSpec extends Specification with BouncyCastleHelpers {
     val e1 = vWarn.withExport(new File("1"))
     e1 !=== vWarn
   }
-
 
   "MonoHashBuilder.Ready returns itself on a noop flow setter" >> {
     val hpZ = MonoHash.withHashPlan(new File("Z"))

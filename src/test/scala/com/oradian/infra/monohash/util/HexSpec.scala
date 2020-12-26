@@ -4,6 +4,8 @@ package util
 import java.util.{Arrays => JArrays}
 
 class HexSpec extends Specification {
+  sequential
+
   private[this] final val ToLcHex = "0123456789abcdef".toCharArray
   private[this] def turtleHex(bytes: Array[Byte]): String = {
     val hex = new Array[Char](bytes.length << 1)

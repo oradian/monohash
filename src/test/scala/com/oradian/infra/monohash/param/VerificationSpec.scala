@@ -7,6 +7,8 @@ import java.util.{Arrays => JArrays}
 import com.oradian.infra.monohash.util.Hex
 
 class VerificationSpec extends Specification {
+  sequential
+
   private[this] val algorithm = new Algorithm("MD5")
   private[this] val concurrency = Concurrency.fixed(2)
 

@@ -1,7 +1,8 @@
 # MonoHash
 [![Build Status](https://travis-ci.com/oradian/monohash.svg?branch=develop)](https://travis-ci.com/oradian/monohash)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.oradian.infra/monohash)
+[![Javadoc](https://javadoc.io/badge2/com.oradian.infra/monohash/javadoc.svg)](https://javadoc.io/doc/com.oradian.infra/monohash)
 [![Codacy](https://app.codacy.com/project/badge/Grade/2c1989ff20904033b7369cb50d9c6e38)](https://www.codacy.com/gh/oradian/monohash/dashboard)
 [![Codecov](https://codecov.io/gh/oradian/monohash/branch/develop/graph/badge.svg)](https://codecov.io/gh/oradian/monohash)
 
@@ -145,7 +146,7 @@ Ivy:
 
 SBT:
 ```
-libraryDependencies += "com.oradian.infra" % "monohash" % "0.8.0"
+libraryDependencies += "com.oradian.infra" % "monohash" % "0.9.0-SNAPSHOT"
 ```
 
 ### Command-line usage:

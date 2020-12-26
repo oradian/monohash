@@ -7,6 +7,8 @@ import java.util.{Arrays => JArrays}
 import com.oradian.infra.monohash.param.LogLevel
 
 class HashPlanSpec extends Specification {
+  sequential
+
   private[this] def test(plan: String, logger: Logger = new LoggingLogger(LogLevel.TRACE)): HashPlan =
     HashPlan.apply(logger, new File(resources + plan + "/.monohash"))
 

@@ -2,6 +2,8 @@ package com.oradian.infra.monohash
 package impl
 
 class NoopLoggerSpec extends Specification {
+  sequential
+
   "Spamming is noop" >> {
     spam(NoopLogger.INSTANCE)
     success

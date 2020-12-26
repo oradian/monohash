@@ -2,8 +2,10 @@ organization := "com.oradian.infra"
 name := "monohash"
 
 libraryDependencies ++= Seq(
-  "org.specs2"       %% "specs2-core"    % "4.10.5" % Test,
-  "org.bouncycastle" %  "bcprov-jdk15on" % "1.67"   % Test,
+  "org.bouncycastle" %  "bcprov-jdk15on"         % "1.67"   % Test,
+  "com.oradian.util" %  "exit-denied"            % "0.1.0"  % Test,
+  "org.specs2"       %% "specs2-core"            % "4.10.5" % Test,
+  "com.topdesk"      %  "time-transformer-agent" % "1.3.0"  % Test,
 )
 
 crossPaths := false
@@ -37,21 +39,39 @@ Test / fork := true
 Test / parallelExecution := false
 Test / testForkedParallel := false
 Test / testGrouping := {
-  val opts = ForkOptions(
+  def opts(extraOpts: Seq[String]) = ForkOptions(
     javaHome = (Test / javaHome).value,
     outputStrategy = (Test / outputStrategy).value,
     bootJars = Vector.empty,
     workingDirectory = Some((Test / baseDirectory).value),
-    runJVMOptions = (Test / javaOptions).value.toVector,
-    connectInput = (Test / connectInput).value,
+    runJVMOptions = extraOpts.toVector ++ (Test / javaOptions).value,
+    connectInput = false,
     envVars = (Test / envVars).value,
   )
-  // run each test in separate forked JVM so that we can e.g.
+
+  val timeTransformAgent =
+    (Test / externalDependencyClasspath).value.files
+      .find(_.getName.contains("time-transformer-agent"))
+      .getOrElse(sys.error("Could not locate time-transformer-agent in the classpath"))
+
+  val exitDenied =
+    (Test / externalDependencyClasspath).value.files
+      .find(_.getName.contains("exit-denied"))
+      .getOrElse(sys.error("Could not locate exit-denied in the classpath"))
+
+  // Run each test in separate forked JVM so that we can e.g.
   // - screw up Security Providers
-  // - test loading of corrupted monohash.properties
-  // - fiddle with Singletons via reflection ...
-  (Test / definedTests).value map { test =>
-    Tests.Group(test.name, Seq(test), Tests.SubProcess(opts))
+  // - test loading of corrupted monohash.properties (which destroys all param classes)
+  // - use per-test JVM agents (i.e. currently time travelling)
+  // - fiddle with Singletons via reflection without cleanup ...
+
+  (Test / definedTests).value.sortBy(_.name).map { test =>
+    val agentLibs = (
+      (if (test.name endsWith ".util.FormatSpec") Seq(timeTransformAgent) else Nil) ++
+      (if (test.name endsWith ".MonoHashSpec") Seq(exitDenied) else Nil)
+    ).map(lib => "-javaagent:" + lib.getPath)
+
+    Tests.Group(test.name, Seq(test), Tests.SubProcess(opts(agentLibs)))
   }
 }
 

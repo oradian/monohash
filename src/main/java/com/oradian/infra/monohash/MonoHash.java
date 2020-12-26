@@ -250,10 +250,6 @@ public final class MonoHash {
         }
     }
 
-    public static HashResults run(final MonoHashBuilder.Ready builder) throws ExitException {
-        return run(builder.logger, builder.algorithm, builder.concurrency, builder.verification, builder.hashPlan, builder.export);
-    }
-
     public static HashResults run(
             final Logger logger,
             final Algorithm algorithm,

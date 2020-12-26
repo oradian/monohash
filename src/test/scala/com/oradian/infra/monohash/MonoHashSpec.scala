@@ -5,8 +5,11 @@ import java.security.MessageDigest
 
 import com.oradian.infra.monohash.impl.PrintStreamLogger
 import com.oradian.infra.monohash.util.Hex
+import com.oradian.util.exitdenied.ExitSwitch
 
 class MonoHashSpec extends Specification {
+  sequential
+
   private[this] def systemTest(args: String*): ((Int, String), String) =
     withPS { err =>
       withPS { out =>
@@ -190,25 +193,12 @@ class MonoHashSpec extends Specification {
           val oldOut = System.out
           System.setOut(out)
           try {
-
-            val old = System.getSecurityManager
-            System.setSecurityManager(new SecurityManager {
-              override def checkExit(exitCode: Int): Unit = throw new ExitException("main-check", exitCode)
-
-              override def checkPermission(perm: java.security.Permission): Unit = ()
-            })
-
-            try {
-              MonoHash.main(Array()) ==== ()
-            } catch {
-              case e: ExitException =>
-                e.exitCode ==== 2000
-                e.getMessage ==== "main-check"
-            } finally {
-              System.setSecurityManager(old)
-            }
-
+            var exitCode = 0
+            ExitSwitch.setExit(code => exitCode = code) // prevent System.exit
+            MonoHash.main(Array()) ==== ()
+            exitCode ==== 2000
           } finally {
+            ExitSwitch.setExit(null)
             System.setOut(oldOut)
           }
         }._2 ==== "" // out

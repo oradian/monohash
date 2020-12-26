@@ -3,6 +3,8 @@ package com.oradian.infra.monohash
 import com.oradian.infra.monohash.param.{Algorithm, Concurrency, LogLevel}
 
 class WhiteWalkerSpec extends Specification {
+  sequential
+
   private[this] val logger = new LoggingLogger(LogLevel.TRACE)
   private[this] val algorithm = Algorithm.DEFAULT
   private[this] val concurrency = Concurrency.fixed(1)

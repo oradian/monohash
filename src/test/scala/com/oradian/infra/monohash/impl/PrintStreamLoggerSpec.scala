@@ -6,6 +6,8 @@ import java.util.Locale
 import com.oradian.infra.monohash.param.LogLevel
 
 class PrintStreamLoggerSpec extends Specification {
+  sequential
+
   "Cross product of logLevel and logging works" >> {
     for (logLevel <- LogLevel.values.toSeq) yield {
       val logLines = withPS { testStream =>

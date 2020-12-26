@@ -7,6 +7,8 @@ import com.oradian.infra.monohash.param.{Algorithm, LogLevel}
 import com.oradian.infra.monohash.util.Hex
 
 class DiffSpec extends Specification {
+  sequential
+
   private[this] val logger = new LoggingLogger(LogLevel.TRACE)
   private[this] val algorithm = Algorithm.DEFAULT
 
