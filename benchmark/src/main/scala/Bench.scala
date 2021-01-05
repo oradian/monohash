@@ -20,6 +20,6 @@ class Bench {
   @BenchmarkMode(Array(Mode.AverageTime))
   @OutputTimeUnit(TimeUnit.MICROSECONDS)
   def test(bh: Blackhole): Unit = {
-    bh.consume(com.oradian.infra.monohash.Verification.values())
+    bh.consume(com.oradian.infra.monohash.param.Verification.values())
   }
 }
