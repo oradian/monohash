@@ -7,10 +7,7 @@ import com.oradian.infra.monohash.util.Format;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.regex.Pattern;
@@ -23,6 +20,7 @@ final class WhiteWalker {
 
     private final Semaphore workersFinished;
     private final AtomicReference<Exception> workerError;
+    private final ExecutorService es;
 
     private final long startAt;
     private final ConcurrentMap<String, byte[]> pathHashes;
@@ -37,7 +35,8 @@ final class WhiteWalker {
             final HashPlan hashPlan,
             final Queue<File> workQueue,
             final Semaphore workersFinished,
-            final AtomicReference<Exception> workerError) {
+            final AtomicReference<Exception> workerError,
+            final ExecutorService es) {
         this.logger = logger;
         this.algorithm = algorithm;
         this.hashPlan = hashPlan;
@@ -46,6 +45,7 @@ final class WhiteWalker {
         // workersFinished is a successful semaphore countdown, workerError is "cancel everything, stop work"
         this.workersFinished = workersFinished;
         this.workerError = workerError;
+        this.es = es;
 
         // not really started, but makes sense to calculate time since initialisation
         this.startAt = System.currentTimeMillis();
@@ -68,7 +68,7 @@ final class WhiteWalker {
         if (logger.isTraceEnabled()) {
             logger.trace("Started worker " + workerId + " ...");
         }
-        final HashWorker hasher = new HashWorker(logger, algorithm, bytesHashed);
+        final HashWorker hasher = new HashWorker(logger, algorithm, bytesHashed, es);
         while (true) {
             if (workerError.get() != null) {
                 if (logger.isDebugEnabled()) {
@@ -91,7 +91,6 @@ final class WhiteWalker {
                     if (logger.isTraceEnabled()) {
                         logger.trace(workerId + " is finished");
                     }
-                    hasher.es.shutdown();
                     return;
                 }
                 continue; // spinlock until new work is available
@@ -215,41 +214,44 @@ final class WhiteWalker {
         }
 
         final int threads = concurrency.getConcurrency();
-        final Thread[] workers = new Thread[threads];
 
         final Semaphore workersFinished = new Semaphore(1 - threads);
         final AtomicReference<Exception> workerError = new AtomicReference<>();
-        final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError);
+        final ExecutorService es = Executors.newCachedThreadPool();
+        final WhiteWalker ww = new WhiteWalker(logger, algorithm, hashPlan, workQueue, workersFinished, workerError, es);
 
-        for (int i = 0; i < workers.length; i++) {
-            final String workerId = "Worker #" + (i + 1);
-            workers[i] = new Thread(() -> {
-                try {
-                    ww.processWorkInQueue(logger, workerId);
-                } catch (final Exception t) {
-                    workerError.set(t);
-                    if (logger.isErrorEnabled()) {
-                        logger.error(workerId + " experienced an exception, shutting down other workers ...");
+        final List<Future<?>> workers = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < threads; i++) {
+                final String workerId = "Worker #" + (i + 1);
+                workers.add(es.submit(() -> {
+                    try {
+                        ww.processWorkInQueue(logger, workerId);
+                    } catch (final Exception t) {
+                        workerError.set(t);
+                        if (logger.isErrorEnabled()) {
+                            logger.error(workerId + " experienced an exception, shutting down other workers ...");
+                        }
+                    } finally {
+                        workersFinished.release();
                     }
-                } finally {
-                    workersFinished.release();
-                }
-            });
-        }
-
-        for (final Thread worker : workers) {
-            worker.start();
-        }
-        ww.logUntilFinished();
-        for (final Thread worker : workers) {
-            try {
-                worker.join();
-            } catch (final InterruptedException e) {
-                throw new IOException(e);
+                }));
             }
-        }
-        if (workerError.get() != null) {
-            throw workerError.get();
+
+            ww.logUntilFinished();
+            for (final Future<?> worker : workers) {
+                try {
+                    worker.get();
+                } catch (final InterruptedException e) {
+                    throw new IOException(e);
+                }
+            }
+            if (workerError.get() != null) {
+                throw workerError.get();
+            }
+        } finally {
+            es.shutdown();
         }
 
         // sort the entries by their relative paths
