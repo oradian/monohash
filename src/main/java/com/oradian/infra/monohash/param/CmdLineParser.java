@@ -20,6 +20,7 @@ public abstract class CmdLineParser {
         ALGORITHM   ("-a", "algorithm",    Algorithm.DEFAULT.name, ", some allowed values: " + formatSupportedAlgorithms(false)),
         CONCURRENCY ("-c", "concurrency",  Concurrency.DEFAULT.getConcurrency(), " - taken from number of CPUs"),
         VERIFICATION("-v", "verification", Verification.DEFAULT, ", allowed values: " + formatSupportedVerifications()),
+//        SINGLE      ("-i", "single",       false, ", "),
         ;
 
         final String flag;

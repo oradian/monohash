@@ -1,0 +1,9 @@
+[package]
+name = "single-rust"
+version = "0.0.1"
+authors = ["Marko Elezovic <melezov@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+crypto-hash = "0.3.4"
+sha-1 = "0.9.3"

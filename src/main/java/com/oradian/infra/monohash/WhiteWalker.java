@@ -91,6 +91,7 @@ final class WhiteWalker {
                     if (logger.isTraceEnabled()) {
                         logger.trace(workerId + " is finished");
                     }
+                    hasher.es.shutdown();
                     return;
                 }
                 continue; // spinlock until new work is available
@@ -110,8 +111,13 @@ final class WhiteWalker {
                     }
                     synchronized (workQueue) {
                         workQueue.addAll(Arrays.asList(children));
+                        currentlyProcessing.decrement();
                     }
                 } else {
+                    // in case this is one of the last files to process, we need to let the other workers know
+                    // immediately unlock to minimise spinlocking and notify that there is no more work for them
+                    currentlyProcessing.decrement();
+
                     final byte[] hash = hasher.hashFile(file);
                     // replace the empty path with the real hash
                     pathHashes.put(relativePath, hash);
@@ -120,8 +126,6 @@ final class WhiteWalker {
                     filesHashed.increment();
                 }
             }
-
-            currentlyProcessing.decrement();
         }
     }
 
