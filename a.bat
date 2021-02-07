@@ -9,9 +9,12 @@ rem echo read
 rem java -DhashMethod=read -jar target\monohash-0.9.0.jar !TARGET!
 
 echo baseline %%s
+java !ARGS! -DhashMethod=0 -jar target\monohash-0.9.0.jar !TARGET!
+
+echo semaphores %%s
 java !ARGS! -DhashMethod=1 -jar target\monohash-0.9.0.jar !TARGET!
 
-echo parallelViaExecutor %%s
+echo futures %%s
 java !ARGS! -DhashMethod=2 -jar target\monohash-0.9.0.jar !TARGET!
 
 )
