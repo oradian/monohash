@@ -53,12 +53,14 @@ public final class HashWorker {
             if (size < BUFFER_SIZE * 8) {
                 hashSmall(fc, md);
             } else {
-                if (System.getProperty("hashMethod").equals("1")) {
+                if (System.getProperty("hashMethod").equals("0")) {
+                    hashSmall(fc, md);
+                } else if (System.getProperty("hashMethod").equals("1")) {
                     hashLarge(fc, md);
                 } else if (System.getProperty("hashMethod").equals("2")) {
                     hashLarge2(fc, md);
                 } else {
-                    throw new RuntimeException("TTETETETETE");
+                    throw new RuntimeException("NOOOO");
                 }
             }
 
