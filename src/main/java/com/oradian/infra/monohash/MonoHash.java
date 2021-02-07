@@ -22,10 +22,11 @@ public final class MonoHash {
     }
 
     static int main(final String[] argsx, final PrintStream out, final PrintStream err) {
+//        System.setProperty("hashMethod", "2");
 //        final String[] args = { "-ldebug", "s:\\w2" }; //\\linux-5.11-rc6\\lib\\zstd\\" };
 //        final String[] args = { "-ltrace", "s:\\w2\\linux-5.11-rc6\\lib\\zstd\\" };
 //        final String[] args = { "-ltrace", "r:\\uu" };
-//        final String[] args = argsx;
+        final String[] args = argsx;
 
         try {
             final Function<LogLevel, Logger> loggerFactory = logLevel -> new PrintStreamLogger(err, logLevel);

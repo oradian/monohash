@@ -53,7 +53,13 @@ public final class HashWorker {
             if (size < BUFFER_SIZE * 8) {
                 hashSmall(fc, md);
             } else {
-                hashLarge(fc, md);
+                if (System.getProperty("hashMethod").equals("1")) {
+                    hashLarge(fc, md);
+                } else if (System.getProperty("hashMethod").equals("2")) {
+                    hashLarge2(fc, md);
+                } else {
+                    throw new RuntimeException("TTETETETETE");
+                }
             }
 
             final byte[] result = md.digest();
@@ -151,6 +157,51 @@ public final class HashWorker {
         try {
             work.get();
         } catch (final Exception e) {
+            throw new IOException(e);
+        }
+    }
+
+    private void hashLarge2(final FileChannel fc, final MessageDigest md) throws IOException {
+        if (largeBuffers[0] == null) {
+            largeBuffers[0] = ByteBuffer.allocateDirect(BUFFER_SIZE * 4);
+            largeBuffers[1] = ByteBuffer.allocateDirect(BUFFER_SIZE * 4);
+        }
+
+        final ByteBuffer buffer1 = largeBuffers[0];
+        final ByteBuffer buffer2 = largeBuffers[1];
+
+        final Runnable run1 = () -> md.update(buffer1);
+        final Runnable run2 = () -> md.update(buffer2);
+
+        Future<?> hasher1;
+        Future<?> hasher2 = CompletableFuture.completedFuture(null);
+
+        int read1;
+        int read2 = 0;
+
+        try {
+            while (true) {
+                buffer1.clear();
+                read1 = fc.read(buffer1);
+                buffer1.flip();
+                hasher2.get();
+                bytesHashed.add(read2);
+                if (read1 == -1) {
+                    break;
+                }
+                hasher1 = es.submit(run1);
+
+                buffer2.clear();
+                read2 = fc.read(buffer2);
+                buffer2.flip();
+                hasher1.get();
+                bytesHashed.add(read1);
+                if (read2 == -1) {
+                    break;
+                }
+                hasher2 = es.submit(run2);
+            }
+        } catch (final ExecutionException | InterruptedException e) {
             throw new IOException(e);
         }
     }

@@ -146,7 +146,7 @@ final class WhiteWalker {
                 // don't log the same timing message twice if logger is exiting, only if it has changed in the meantime
                 if (!finished || filesCount != lastFiles) {
                     lastFiles = filesCount;
-                    if (logger.isInfoEnabled()) {
+                    if (logger.isDebugEnabled()) {
                         final long bytesHashed = this.bytesHashed.longValue();
                         final long tookMs = System.currentTimeMillis() - startAt;
                         msAdjustment += tookMs - LOGGING_INTERVAL_MS - lastTookMs;
@@ -155,7 +155,7 @@ final class WhiteWalker {
                         final int filesSpeed = seconds > 0.0f ? (int) (filesCount / seconds) : 0;
                         final int hashingSpeed = seconds > 0.0f ? (int) (bytesHashed / seconds / (1 << 20)) : 0;
                         final String errorNotice = workerError.get() == null ? "" : " [stopping early due to errors]";
-                        logger.info("Hashed " + Format.i(filesCount) +
+                        logger.debug("Hashed " + Format.i(filesCount) +
                                 " files with a total of " + Format.i(bytesHashed) +
                                 " bytes in " + Format.f(seconds) +
                                 " sec (average speed: " + Format.i(filesSpeed) +
