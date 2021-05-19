@@ -70,6 +70,9 @@ class HashResultsSpec extends Specification {
     hr.hash() ==== emptySha
     hr.hash() ==== emptySha
 
+    hr.hexHash() ==== Hex.toHex(emptySha)
+    hr.hexHash() ==== Hex.toHex(emptySha)
+
     test(hr, Seq.empty)
   }
 

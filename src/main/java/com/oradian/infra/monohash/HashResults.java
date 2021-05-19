@@ -31,7 +31,7 @@ public final class HashResults {
     }
 
     private byte[] hashCache;
-    public byte[] hash() {
+    private synchronized void calcHashCache() {
         if (hashCache == null) {
             final long startAt = System.nanoTime();
             final MessageDigest md = algorithm.init(lines.length);
@@ -40,7 +40,24 @@ public final class HashResults {
                 logger.trace("Calculated total hash: " + Format.hex(hashCache) + Format.timeNanos(startAt));
             }
         }
+    }
+
+    public byte[] hash() {
+        if (hashCache == null) {
+            calcHashCache();
+        }
         return hashCache.clone();
+    }
+
+    private String hexHashCache;
+    public String hexHash() {
+        if (hexHashCache == null) {
+            if (hashCache == null) {
+                calcHashCache();
+            }
+            hexHashCache = Hex.toHex(hashCache);
+        }
+        return hexHashCache;
     }
 
     private int[] newlinesCache;

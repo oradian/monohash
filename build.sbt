@@ -2,9 +2,9 @@ organization := "com.oradian.infra"
 name := "monohash"
 
 libraryDependencies ++= Seq(
-  "org.bouncycastle" %  "bcprov-jdk15on"         % "1.67"   % Test,
+  "org.bouncycastle" %  "bcprov-jdk15on"         % "1.68"   % Test,
   "com.oradian.util" %  "exit-denied"            % "0.1.0"  % Test,
-  "org.specs2"       %% "specs2-core"            % "4.10.5" % Test,
+  "org.specs2"       %% "specs2-core"            % "4.11.0" % Test,
   "com.topdesk"      %  "time-transformer-agent" % "1.3.0"  % Test,
 )
 
@@ -24,7 +24,7 @@ javacOptions := (doc / javacOptions).value ++ (Seq(
   Seq("-bootclasspath", jdk8 + "/jre/lib/rt.jar")
 }.getOrElse(Nil))
 
-scalaVersion := "2.13.4" // for tests only
+scalaVersion := "2.13.6" // for tests only
 scalacOptions := Seq(
   "-deprecation",
   "-encoding", "UTF-8",

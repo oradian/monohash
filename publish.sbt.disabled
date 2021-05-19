@@ -1,5 +1,7 @@
 import xerial.sbt.Sonatype._
 
+versionScheme := Some("semver-spec")
+
 sonatypeProjectHosting := Some(GitHubHosting("oradian", "monohash", "marko.elezovic@oradian.com"))
 developers := Developer(id = "melezov", name = "Marko Elezovic", email = "marko.elezovic@oradian.com", url = url("https://github.com/melezov")) :: Nil
 

@@ -34,7 +34,7 @@ MonoHash is **fast**. Running on a cold JVM via the `java -jar monohash.jar` on 
 [info] compiling 26 Java sources to /home/melezov/monohash/target/classes ...
 [success] Total time: 2 s, completed Jan 5, 2021 10:55:42 AM
 
-[melezov@ci-01 monohash]$ java -jar target/monohash-0.9.0.jar ~/linux/linux-5.11-rc2/
+[melezov@ci-01 monohash]$ java -jar target/monohash-0.9.1.jar ~/linux/linux-5.11-rc2/
 [info] Using [hash plan directory]: '/home/melezov/linux/linux-5.11-rc2/' ...
 [info] Hashed 75,555 files with a total of 1,034,173,305 bytes in 0.810 sec (average speed: 93,277 files/sec, 1,217 MiB/sec)
 [info] Executed hash plan by hashing 75,555 files: [6fc9f0e039d68272eef3e085f79a4b2dddb98de8] (in 0.935 sec)
@@ -135,24 +135,24 @@ Maven:
 <dependency>
   <groupId>com.oradian.infra</groupId>
   <artifactId>monohash</artifactId>
-  <version>0.9.0</version>
+  <version>0.9.1</version>
 </dependency>
 ```
 
 Ivy:
 ```
-<dependency org="com.oradian.infra" name="monohash" rev="0.9.0"/>
+<dependency org="com.oradian.infra" name="monohash" rev="0.9.1"/>
 ```
 
 SBT:
 ```
-libraryDependencies += "com.oradian.infra" % "monohash" % "0.9.0"
+libraryDependencies += "com.oradian.infra" % "monohash" % "0.9.1"
 ```
 
 ### Command-line usage:
 
 If you don't care about programmatic (library) access, you can simply
-[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.9.0/monohash-0.9.0.jar)
+[download the binary](https://oss.sonatype.org/content/groups/public/com/oradian/infra/monohash/0.9.1/monohash-0.9.1.jar)
 and use it on the command line.
 
 Running it on the command line allows for some configuration such as choosing the hashing algorithm, concurrency and log levels:
